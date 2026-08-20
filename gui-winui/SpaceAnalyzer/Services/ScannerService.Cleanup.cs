@@ -32,54 +32,27 @@ public partial class ScannerService
             argList.Add("--unused-days");
             argList.Add(unusedDays.ToString());
 
-            var psi = new ProcessStartInfo
-            {
-                FileName = cleanerPath,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            foreach (var a in argList) psi.ArgumentList.Add(a);
-
             _cleanerStopCts?.Cancel();
             _cleanerStopCts?.Dispose();
             using var stopCts = new CancellationTokenSource();
             _cleanerStopCts = stopCts;
 
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-            var stderrTask = process.StandardError.ReadToEndAsync(ct);
-
-            using var timeoutCts = new CancellationTokenSource(s_cleanerTimeout);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token, timeoutCts.Token);
+            var psi = ProcessRunner.CreateCliStartInfo(cleanerPath, argList);
+            ProcessRunResult runResult;
             try
             {
-                await process.WaitForExitAsync(linkedCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                if (timeoutCts.IsCancellationRequested)
-                {
-                    try { process.Kill(entireProcessTree: true); } catch { }
-                    throw new TimeoutException($"node_modules_cleaner timed out after {s_cleanerTimeout.TotalMinutes} minutes");
-                }
-                try { process.Kill(entireProcessTree: true); } catch { }
-                throw;
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, stopCts.Token);
+                runResult = await ProcessRunner.RunAsync(psi, linkedCts.Token, s_cleanerTimeout);
             }
             finally
             {
                 _cleanerStopCts = null;
             }
 
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
-
-            if (process.ExitCode != 0)
+            if (runResult.ExitCode != 0)
             {
                 if (!File.Exists(tempOutput))
-                    throw new Exception($"Cleaner failed (exit {process.ExitCode}): {stderr}");
+                    throw new Exception($"Cleaner failed (exit {runResult.ExitCode}): {runResult.StdErr}");
             }
 
             if (!File.Exists(tempOutput))

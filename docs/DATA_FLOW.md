@@ -92,7 +92,7 @@ docs/ISSUES.md              ← derived counts table (gitignored; regenerate: py
 ux_issues.json             ← runtime vision output (regenerated; gitignored)
 docs/changelog/unreleased.md ← latest fixes; docs/CHANGELOG.md has the released history
 docs/INDEX.md              ← doc-status hub; ARCHITECTURE_DECISIONS.md ← key decisions + on-hold rules
-docs/archive/             ← gitignored historical/analysis docs (IMPROVEMENTS.md, FEATURE_GAP_ANALYSIS.md, prior changelogs); on-disk only
+docs/archive/             ← historical/analysis docs are gitignored and kept out of the tracked tree (IMPROVEMENTS.md, FEATURE_GAP_ANALYSIS.md, prior changelogs); see AGENTS.md / docs/CHANGELOG.md for current status
 ```
 
 ---
@@ -101,7 +101,7 @@ docs/archive/             ← gitignored historical/analysis docs (IMPROVEMENTS.
 
 | I need to… | Canonical path |
 |------------|----------------|
-| Change scanner / CLI behavior | `src/cli/` (`scan.rs`, `history.rs`, `dedup.rs`, `app_inventory.rs`, `semantic.rs`, `mod.rs`); core libs in `src/*.rs`, `scan-engine/src/` |
+| Change scanner / CLI behavior | `src/cli/` (`scan.rs`, `history_command.rs`, `dedup.rs`, `app_inventory.rs`, `semantic.rs`, `search.rs`, `db_command.rs`, `mod.rs`); core libs in `src/*.rs`, `scan-engine/src/` |
 | Touch the Windows scanner | `native/win-usn/` |
 | Build / run the Rust CLI | `cargo run --bin space-analyzer-cli -- <subcommand>` (workspace root) |
 | Change the WinUI UI | `gui-winui/SpaceAnalyzer/Views/*.xaml`, `ViewModels/*.cs` |

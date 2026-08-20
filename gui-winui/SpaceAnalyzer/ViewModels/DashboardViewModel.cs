@@ -184,7 +184,7 @@ public partial class DashboardViewModel : ViewModelBase, IDisposable
     private bool _gpuAvailable;
     /// <summary>
     /// False when Windows exposes no GPU Engine performance counters. The gauge then
-    /// reports "n/a" instead of a hardcoded 0% that looks like a real reading.
+    /// reports "Not tracked" instead of a hardcoded 0% that looks like a real reading.
     /// </summary>
     public bool GpuAvailable
     {
@@ -192,7 +192,7 @@ public partial class DashboardViewModel : ViewModelBase, IDisposable
         set { _gpuAvailable = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuUsageDisplay)); }
     }
 
-    public string GpuUsageDisplay => GpuAvailable ? $"{GpuUsage:F0}%" : "n/a";
+    public string GpuUsageDisplay => GpuAvailable ? $"{GpuUsage:F0}%" : "Not tracked";
     public SolidColorBrush GpuBrush => UiHelper.GetUsageBrush(GpuUsage);
 
     private string _gpuName = string.Empty;

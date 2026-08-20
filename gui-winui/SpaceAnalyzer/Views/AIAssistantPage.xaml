@@ -27,6 +27,7 @@
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
+                        AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}"
                         HorizontalAlignment="{x:Bind IsUser, Mode=OneWay, Converter={StaticResource BoolToHorizontalAlignment}}">
                     <StackPanel Spacing="{StaticResource Space.XS}">
                         <!-- Tool name badge -->
@@ -75,6 +76,7 @@
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                         BorderThickness="1"
+                        AutomationProperties.Name="{x:Bind AutomationName, Mode=OneWay}"
                         HorizontalAlignment="Left">
                     <StackPanel Spacing="{StaticResource Space.XS}">
                         <!-- Tool name badge -->
@@ -186,7 +188,7 @@
             </ScrollViewer>
 
             <TextBlock Text="No models installed yet — pull one with 'ollama pull &lt;model&gt;'."
-                        Style="{StaticResource Type.Caption}" Opacity="0.7"
+                        Style="{StaticResource StatusBarText}"
                         Visibility="{x:Bind VM.ShowNoModelsHint, Mode=OneWay, Converter={StaticResource BoolToVisibility}}"/>
         </StackPanel>
 
@@ -225,7 +227,7 @@
                     <!-- Suggested prompts -->
                     <StackPanel Spacing="{StaticResource Space.SM}" Margin="0,0,0,12"
                                 Visibility="{x:Bind VM.ShowSuggestions, Mode=OneWay}">
-                        <TextBlock Text="Try asking:" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                        <TextBlock Text="Try asking:" Style="{StaticResource StatusBarText}"/>
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
                             <Button Content="What takes up the most space?" Click="SuggestedPrompt_Click"
                                     Style="{StaticResource SuggestionChip}" Tag="What takes up the most space?"/>

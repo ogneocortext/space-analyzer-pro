@@ -5,7 +5,7 @@ A modern Windows desktop app built with WinUI 3 (Windows App SDK) and Fluent Des
 ## Prerequisites
 
 - .NET 10.0 SDK
-- Windows App SDK 2.3+
+- Windows App SDK 2.4.0+
 - Visual Studio 2022 17.8+ (or MSBuild CLI) — **VS MSBuild is required**; `dotnet build` fails with WMC9999 on non-English Windows.
 - Rust toolchain (for the scanner backend)
 
@@ -43,7 +43,7 @@ cargo test --workspace
 gui-winui/
 ├── SpaceAnalyzer.sln
 ├── SpaceAnalyzer/
-│   ├── SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.3
+│   ├── SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.4.0
 │   ├── App.xaml(.cs)          # Application entry
 │   ├── MainWindow.xaml(.cs)   # NavigationView shell
 │   ├── Helpers/

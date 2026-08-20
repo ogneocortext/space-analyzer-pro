@@ -425,10 +425,10 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{x:Bind TimestampDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.6"/>
+                                        <TextBlock Grid.Column="0" Text="{x:Bind TimestampDisplay, Mode=OneTime}" Style="{StaticResource StatusBarText}"/>
                                         <TextBlock Grid.Column="1" Text="{x:Bind HistoryLabel, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontWeight="SemiBold"/>
                                         <TextBlock Grid.Column="2" Text="{x:Bind ResultCount, Mode=OneTime, Converter={StaticResource IntToResultsText}}" Style="{StaticResource Type.Caption}"/>
-                                        <TextBlock Grid.Column="3" Text="{x:Bind Status, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                        <TextBlock Grid.Column="3" Text="{x:Bind Status, Mode=OneTime}" Style="{StaticResource StatusBarText}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsRepeater.ItemTemplate>

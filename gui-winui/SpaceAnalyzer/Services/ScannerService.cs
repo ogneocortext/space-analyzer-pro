@@ -179,22 +179,9 @@ public partial class ScannerService : IDisposable
 
     private async Task<string> RunCliCaptureAsync(IEnumerable<string> args, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = _scannerPath,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        foreach (var a in args) psi.ArgumentList.Add(a);
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-        var outTask = process.StandardOutput.ReadToEndAsync(ct);
-        var errTask = process.StandardError.ReadToEndAsync(ct);
-        try { await process.WaitForExitAsync(ct); }
-        catch { try { process.Kill(entireProcessTree: true); } catch { } }
-        return (await outTask) + (await errTask);
+        var psi = ProcessRunner.CreateCliStartInfo(_scannerPath, args);
+        var result = await ProcessRunner.RunAsync(psi, ct, TimeSpan.FromMinutes(2));
+        return result.StdOut + result.StdErr;
     }
 
     private async Task<string> TryRunHelpAsync(string subcommand, CancellationToken ct)
@@ -238,30 +225,12 @@ public partial class ScannerService : IDisposable
             return new Dictionary<string, string>();
         try
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = _scannerPath,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            psi.ArgumentList.Add("settings");
-            psi.ArgumentList.Add("get");
-            psi.ArgumentList.Add("--format");
-            psi.ArgumentList.Add("json");
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-            var stderrTask = process.StandardError.ReadToEndAsync(ct);
-            var json = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync(ct);
-            _ = await stderrTask;
-            if (process.ExitCode != 0)
-                return new Dictionary<string, string>();
-            if (string.IsNullOrWhiteSpace(json))
+            var psi = ProcessRunner.CreateCliStartInfo(_scannerPath, new[] { "settings", "get", "--format", "json" });
+            var runResult = await ProcessRunner.RunAsync(psi, ct, TimeSpan.FromMinutes(2));
+            if (runResult.ExitCode != 0 || string.IsNullOrWhiteSpace(runResult.StdOut))
                 return new Dictionary<string, string>();
             var parsed = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                json,
+                runResult.StdOut,
                 s_jsonOptions);
             var result = new Dictionary<string, string>();
             if (parsed != null)
@@ -296,39 +265,8 @@ public partial class ScannerService : IDisposable
         {
             foreach (var kvp in values)
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = _scannerPath,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-                psi.ArgumentList.Add("settings");
-                psi.ArgumentList.Add("set");
-                psi.ArgumentList.Add("--key");
-                psi.ArgumentList.Add(kvp.Key);
-                psi.ArgumentList.Add("--value");
-                psi.ArgumentList.Add(kvp.Value);
-                using var process = new Process { StartInfo = psi };
-                process.Start();
-
-                // Drain both streams so a chatty/large response cannot fill the pipe
-                // buffer and deadlock the process before it exits.
-                var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
-                var stderrTask = process.StandardError.ReadToEndAsync(ct);
-
-                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-                try
-                {
-                    await process.WaitForExitAsync(linkedCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    try { process.Kill(entireProcessTree: true); } catch { }
-                    throw;
-                }
-
-                await Task.WhenAll(stdoutTask, stderrTask);
+                var psi = ProcessRunner.CreateCliStartInfo(_scannerPath, new[] { "settings", "set", "--key", kvp.Key, "--value", kvp.Value });
+                await ProcessRunner.RunAsync(psi, ct, TimeSpan.FromMinutes(2));
             }
         }
         catch

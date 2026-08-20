@@ -385,7 +385,7 @@ public class AIChatMessage : ViewModelBase
     public string Content
     {
         get => _content;
-        set { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsUser)); OnPropertyChanged(nameof(IsTool)); }
+        set { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsUser)); OnPropertyChanged(nameof(IsTool)); OnPropertyChanged(nameof(AutomationName)); }
     }
     public DateTime Timestamp { get; }
     public bool IsUser => _role == ChatRole.User;
@@ -394,6 +394,23 @@ public class AIChatMessage : ViewModelBase
     public List<ToolCallResponse>? ToolCalls { get; }
     public string? ToolCallId { get; }
     public string ToolName => ToolCalls?.FirstOrDefault()?.Function.Name ?? "";
+
+    /// <summary>
+    /// Screen-reader label for the message bubble: announces who said it and a short
+    /// preview, so assistive tech can distinguish user vs assistant vs tool results
+    /// without reading the entire (possibly long) message body.
+    /// </summary>
+    public string AutomationName
+    {
+        get
+        {
+            var preview = string.IsNullOrEmpty(_content)
+                ? ""
+                : (_content.Length <= 80 ? _content : _content[..80] + "…");
+            if (IsTool) return $"Tool result from {ToolName}: {preview}";
+            return IsUser ? $"You said: {preview}" : $"Assistant: {preview}";
+        }
+    }
 
     public AIChatMessage(ChatRole role, string content, List<ToolCallResponse>? toolCalls = null, string? toolCallId = null)
     {

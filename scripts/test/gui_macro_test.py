@@ -516,11 +516,12 @@ def set_edit_text_via_uia(window, search_text: str, value: str,
 # UNIFIED TEST RUNNER
 # ═══════════════════════════════════════════════════════════════
 
-# Real tabs exposed by the WinUI 3 NavigationView (discovered via UIA on 2026-08-17).
-# NOTE: "Duplicates"/"System"/"Cleanup" are Dashboard quick-action BUTTONS, not tabs;
-# the search tab is named "Search" (not "Smart Search").
+# Real tabs exposed by the WinUI 3 NavigationView (verified against MainWindow.xaml).
+# The search tab is named "Search" (its page is Smart Search); Installed Apps and
+# USN Journal are real top-level tabs (not Dashboard quick actions).
 ACTUAL_TABS = ["Dashboard", "Scan", "History", "Search", "Workflows",
-               "AI Assistant", "Settings", "About"]
+               "AI Assistant", "Duplicates", "Installed Apps", "System",
+               "Cleanup", "USN Journal", "Settings", "About"]
 NUM_TABS = len(ACTUAL_TABS)
 
 _TAB_INDEX = {name: i for i, name in enumerate(ACTUAL_TABS)}
@@ -532,7 +533,7 @@ _TAB_INDEX = {name: i for i, name in enumerate(ACTUAL_TABS)}
 BUTTON_REGISTRY: dict[str, list[dict[str, str]]] = {
     "Dashboard": [
         {"label": "New Scan", "name": "New Scan", "id": "BtnNewScan"},
-        {"label": "Refresh", "name": "Refresh", "id": ""},
+        {"label": "Refresh", "name": "Refresh dashboard data", "id": ""},
         {"label": "View History", "name": "View History", "id": "BtnViewHistory"},
         {"label": "Find Duplicates", "name": "Find Duplicates", "id": "BtnFindDuplicates"},
         {"label": "AI Assistant", "name": "AI Assistant", "id": "BtnAIAssistant"},
@@ -561,8 +562,9 @@ BUTTON_REGISTRY: dict[str, list[dict[str, str]]] = {
         {"label": "Start Search", "name": "Start Search", "id": ""},
     ],
     "Workflows": [
-        {"label": "Browse", "name": "Browse", "id": "", "external": True},
-        {"label": "Start Search", "name": "Start Search", "id": ""},
+        {"label": "Run workflow", "name": "Run workflow", "id": ""},
+        {"label": "Cancel workflow", "name": "Cancel workflow", "id": ""},
+        {"label": "Clear results", "name": "Clear results", "id": ""},
     ],
     "AI Assistant": [
         {"label": "Send message", "name": "Send message", "id": ""},
@@ -1107,8 +1109,6 @@ def find_binary() -> Path | None:
     candidates = [
         repo_root / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Release" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
         repo_root / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
-        repo_root / "target" / "release" / "space-analyzer-gui.exe",
-        repo_root / "target" / "debug" / "space-analyzer-gui.exe",
     ]
     for p in candidates:
         if p.exists():

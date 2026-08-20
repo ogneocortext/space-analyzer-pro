@@ -40,6 +40,13 @@ public partial class SettingsViewModel
             OnPropertyChanged(nameof(OllamaOptionsEnabled));
             OnPropertyChanged(nameof(ManualModelEnabled));
             OnPropertyChanged(nameof(AgenticOptionsEnabled));
+            if (value)
+                _ = RefreshConnectionStatusAsync();
+            else
+            {
+                ConnectionStatusText = "AI disabled";
+                ConnectionStatusBrush = GetThemeBrush("MutedBrush");
+            }
         }
     }
 
@@ -128,6 +135,48 @@ public partial class SettingsViewModel
         set { _ollamaTestBrush = value; OnPropertyChanged(); }
     }
 
+    // ── Live connection status (auto-refreshed) ──
+
+    private bool _isCheckingConnection;
+    public bool IsCheckingConnection
+    {
+        get => _isCheckingConnection;
+        set { _isCheckingConnection = value; OnPropertyChanged(); }
+    }
+
+    private string _connectionStatusText = "Not checked";
+    public string ConnectionStatusText
+    {
+        get => _connectionStatusText;
+        set { _connectionStatusText = value; OnPropertyChanged(); }
+    }
+
+    private SolidColorBrush _connectionStatusBrush = GetThemeBrush("MutedBrush");
+    public SolidColorBrush ConnectionStatusBrush
+    {
+        get => _connectionStatusBrush;
+        set { _connectionStatusBrush = value; OnPropertyChanged(); }
+    }
+
+    // ── Model list search/filter ──
+
+    public ObservableCollection<string> FilteredModels { get; } = new();
+
+    public bool HasFilteredModels => FilteredModels.Count > 0;
+
+    private string _modelSearchText = string.Empty;
+    public string ModelSearchText
+    {
+        get => _modelSearchText;
+        set
+        {
+            if (_modelSearchText == value) return;
+            _modelSearchText = value;
+            OnPropertyChanged();
+            UpdateFilteredModels();
+        }
+    }
+
     // ── Detected models (from /api/tags) ──
 
     public ObservableCollection<string> DetectedModels { get; } = new();
@@ -151,6 +200,7 @@ public partial class SettingsViewModel
             DetectedModels.Clear();
             foreach (var n in names)
                 DetectedModels.Add(n);
+            UpdateFilteredModels();
 
             OnPropertyChanged(nameof(HasDetectedModels));
             OnPropertyChanged(nameof(DetectedModelsSummary));
@@ -191,6 +241,55 @@ public partial class SettingsViewModel
         {
             OllamaTesting = false;
         }
+        ConnectionStatusText = OllamaTestResult;
+        ConnectionStatusBrush = OllamaTestBrush;
+    }
+
+    public async Task RefreshConnectionStatusAsync()
+    {
+        if (!OllamaEnabled)
+        {
+            ConnectionStatusText = "AI disabled";
+            ConnectionStatusBrush = GetThemeBrush("MutedBrush");
+            return;
+        }
+        IsCheckingConnection = true;
+        try
+        {
+            using var client = new OllamaClient(OllamaUrl);
+            if (await client.IsAvailableAsync())
+            {
+                ConnectionStatusText = "Connected";
+                ConnectionStatusBrush = GetThemeBrush("SuccessBrush");
+                await RefreshDetectedModelsAsync();
+            }
+            else
+            {
+                ConnectionStatusText = "Not reachable";
+                ConnectionStatusBrush = GetThemeBrush("WarningBrush");
+            }
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatusText = "Error: " + (ex.Message.Length > 40 ? ex.Message[..40] : ex.Message);
+            ConnectionStatusBrush = GetThemeBrush("ErrorBrush");
+        }
+        finally
+        {
+            IsCheckingConnection = false;
+        }
+    }
+
+    private void UpdateFilteredModels()
+    {
+        var q = (_modelSearchText ?? string.Empty).Trim();
+        FilteredModels.Clear();
+        foreach (var m in DetectedModels)
+        {
+            if (string.IsNullOrWhiteSpace(q) || m.Contains(q, StringComparison.OrdinalIgnoreCase))
+                FilteredModels.Add(m);
+        }
+        OnPropertyChanged(nameof(HasFilteredModels));
     }
 
     // ── Lifecycle ──
@@ -199,6 +298,7 @@ public partial class SettingsViewModel
     {
         _ = LoadAsync();
         _ = RefreshDetectedModelsAsync();
+        _ = RefreshConnectionStatusAsync();
     }
 
     private async Task LoadAsync()

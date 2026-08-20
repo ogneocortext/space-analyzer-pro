@@ -65,7 +65,7 @@ public partial class SystemViewModel
         set { _gpuAvailable = value; OnPropertyChanged(); OnPropertyChanged(nameof(GpuUsageDisplay)); OnPropertyChanged(nameof(GpuSubtitle)); }
     }
 
-    public string GpuUsageDisplay => GpuAvailable ? $"{GpuUsage:F1}%" : "n/a";
+    public string GpuUsageDisplay => GpuAvailable ? $"{GpuUsage:F1}%" : "Not tracked";
     public SolidColorBrush GpuBrush => UiHelper.GetUsageBrush(GpuUsage);
 
     private string _gpuName = string.Empty;

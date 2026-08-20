@@ -18,9 +18,15 @@
 //
 // Optional env: VISION_MODEL (default gemma4:e2b-it-qat), OLLAMA_URL,
 //   VISION_PROMPT, VISION_KEEP_ALIVE, VISION_MAX_DIM (default 1024), VISION_QUALITY (default 82)
-// Flags: --prompt, --mode ui|responsive|regression|compare, --viewport WxH,
+// Flags: --prompt, --mode ui|responsive|regression|compare|winui, --persona
+//   <name|all>, --viewport WxH,
 //   --label "text", --context "text", --lines (number code context), --low (640px),
 //   --high (1280px), --max-dim N, --quality N, --raw (no auto metadata), --json
+//   (--mode winui uses a professional frontend-engineer persona targeting 2025-2026
+//   WinUI 3 / Fluent 2 desktop design standards; best for Space Analyzer Pro audit.
+//   --persona general|accessibility|design_systems|data_viz|interaction|winui|all
+//   runs a narrow specialist lens; --persona all runs ALL lenses on the same image
+//   and appends a cross-persona consensus note — best for weak models like gemma4:e2b.)
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -40,12 +46,35 @@ const DEFAULT_MAX_DIM = Number(process.env.VISION_MAX_DIM) || 1024;
 const DEFAULT_QUALITY = Number(process.env.VISION_QUALITY) || 82;
 
 const MODE_PROMPTS = {
+  // Professional frontend-engineer persona for WinUI 3 / Windows App SDK 2.x desktop
+  // apps (Fluent 2 design language, 2025-2026 Windows 11 conventions). Produces
+  // specific, implementation-ready feedback that names the exact WinUI 3 control /
+  // attribute / XAML pattern to change, instead of generic "make it cleaner" advice.
+  winui: `You are a SENIOR FRONTEND ENGINEER specializing in WinUI 3 / Windows App SDK 2.x desktop applications, with deep expertise in the Fluent 2 design language and current (2025-2026) Windows 11 desktop UX conventions. You are reviewing ONE screenshot of "Space Analyzer Pro", a disk-space analyzer built in WinUI 3.
+
+Evaluate the screen STRICTLY against what is visibly rendered, using this WinUI 3 / Fluent 2 rubric:
+- Navigation & shell: correct NavigationView usage (pane mode, item icons, Settings pinned to footer), no overflow into a "More" flyout, consistent iconography.
+- Layout & spacing: 4px base grid; ~24px desktop page padding, 8/12/16px gaps, content max-width for readability, no cramped/overlapping controls.
+- Typography: Segoe UI Variable type ramp (Caption/Body/BodyStrong/Subtitle/Title/Display), correct weights, proper TextTrimming/TextWrapping, no mis-sized or low-contrast text.
+- Color & materials: ThemeResource-driven colors (NO hardcoded hex brushes), accent usage, neutral card layers (CardBackgroundFillColorDefaultBrush etc.), Mica backdrop, severity palette (Info/Warning/Error/Success), text-on-accent contrast.
+- Controls: the RIGHT control for the job (ListView/DataGrid/ItemsRepeater; ProgressRing vs ProgressBar; ToggleSwitch vs CheckBox; InfoBar for notifications; CommandBar for grouped actions; ContentDialog for confirmation; teaching tip / tooltip for hints); consistent 8px corner radius and subtle elevation.
+- Data viz: legible charts/labels/legends, hover tooltips, colorblind-safe palette, clear empty states.
+- Interaction & states: hover/pressed/disabled states, loading (ProgressRing), empty/error states (InfoBar), confirmation (ContentDialog), purposeful subtle motion.
+- Accessibility: keyboard focus visuals, logical tab order, AutomationProperties.Name on icon-only controls, body-text contrast >= 4.5:1, >= 40px hit targets, high-contrast support.
+- 2025-2026 idioms: customized title bar (drag regions + caption buttons), optional compact density, layered backdrops, rounded corners, consistent density.
+
+Report concisely and factually (do NOT speculate beyond the pixels):
+1. What screen this is and its primary task.
+2. Concrete usability/visual problems, each tied to the rubric above and citing the SPECIFIC WinUI 3 control/attribute involved (e.g. "the bottom action bar mixes primary + destructive actions with no CommandBar separation"; "the stat card uses a hardcoded hex brush that breaks dark mode"; "the icon-only button has no AutomationProperties.Name").
+3. Overlapping, clipped, unreadable, or misaligned elements; right-edge clipping or content cut off.
+4. Theming/contrast issues (dark or light), broken or inconsistent colors, severity colors used wrong.
+5. Always end with a "Top 3 fixes:" list, most impactful first, where each fix NAMES the exact WinUI 3 control/XAML change (e.g. "Move destructive actions into a CommandBar SecondaryCommands / ContextFlyout using an AppBarButton with a red severity brush"; "Replace the hardcoded #1F1F1F brush with CardBackgroundFillColorDefaultBrush so it follows the theme").`,
   ui: `Analyze this UI screenshot. Report concisely and factually (do not speculate beyond what is visible):
-1. What screen/app/UI is shown.
-2. Any UI errors, crashes, blank/loading states, broken or missing layouts.
-3. Overlapping, cut-off, or unreadable elements; misaligned or inconsistent styling.
-4. Whether content fits the viewport or is clipped/cut off on any edge (especially the right side).
-5. Concrete, actionable suggestions to improve clarity, usefulness, or correctness.`,
+ 1. What screen/app/UI is shown.
+ 2. Any UI errors, crashes, blank/loading states, broken or missing layouts.
+ 3. Overlapping, cut-off, or unreadable elements; misaligned or inconsistent styling.
+ 4. Whether content fits the viewport or is clipped/cut off on any edge (especially the right side).
+ 5. Concrete, actionable suggestions to improve clarity, usefulness, or correctness.`,
   responsive: `This screenshot is being reviewed for RESPONSIVE behavior. Using the viewport/screen context provided:
 1. Does the layout fit the intended viewport without horizontal scroll or right-edge clipping?
 2. Are elements cramped, overlapping, or awkwardly spaced at this width?
@@ -63,9 +92,35 @@ const MODE_PROMPTS = {
 4. Concrete suggestions for the after state.`,
 };
 
+// Persona lenses for multi-angle feedback. A small vision model (gemma4:e2b) gives
+// shallow, primed output from a single prompt, so rotating narrow lenses on the
+// SAME image set (`--persona all`) is the highest-leverage way to extract broader,
+// less biased, more actionable feedback. The `--mode winui` prompt above stays the
+// default single-lens for a full Fluent 2 critique; these are tighter specialists.
+const PERSONA_ORDER = ["general", "accessibility", "design_systems", "data_viz", "interaction"];
+const PERSONA_NAMES = {
+  general: "General UX Lead",
+  accessibility: "Accessibility Specialist",
+  design_systems: "Design Systems / Consistency Lead",
+  data_viz: "Information Density & Data-Viz Expert",
+  interaction: "Interaction / Affordance Engineer",
+};
+const PERSONA_GUARDRAIL = `NOTE: screenshots may be captured programmatically (PrintWindow) of a running WinUI 3 app — minor text blur or sub-pixel rendering are CAPTURE ARTIFACTS, not design defects; do not report them as contrast/typography bugs. Intentionally subtle UI (muted helper text, correctly styled empty/warning states, low-emphasis captions) is deliberate, not broken. Only flag text that is genuinely unreadable as a real accessibility issue.`;
+const PERSONA_PROMPTS = {
+  general: `You are a GENERAL UX LEAD reviewing this UI screenshot of "Space Analyzer Pro" (a WinUI 3 disk-space analyzer). Take a balanced, end-to-end view of clarity and usability. Report concisely and factually (do not speculate beyond the pixels):
+1. What screen this is and its primary task.
+2. Concrete usability/visual problems (cite the specific control/area).
+3. Top 3 fixes that most improve first-run comprehension and everyday use.`,
+  accessibility: `You are an ACCESSIBILITY SPECIALIST reviewing this UI screenshot of "Space Analyzer Pro" (a WinUI 3 app). Focus on WCAG 2.1 AA: text/background contrast ratios, focus-visibility, readable font sizes, and screen-reader-friendly semantics/labels (AutomationProperties.Name on icon-only controls). Only file an issue when a real user with low vision or a keyboard-only flow would be blocked — never for stylistic subtlety. Report concisely: (1) screen, (2) real accessibility blockers, (3) top 3 fixes naming the exact control/attribute.`,
+  design_systems: `You are a DESIGN SYSTEMS / CONSISTENCY LEAD reviewing this UI screenshot of "Space Analyzer Pro" (a WinUI 3 app). Focus on cross-screen consistency: shared spacing rhythm, ThemeResource/token color usage (NO hardcoded hex), button and card styles, header patterns, and reusable components. Flag deviations from the established pattern and propose the canonical Fluent 2 fix (name the exact XAML control/attribute/brush). Report concisely: (1) screen, (2) inconsistencies, (3) top 3 canonical fixes.`,
+  data_viz: `You are an INFORMATION DENSITY & DATA-VIZ EXPERT reviewing this UI screenshot of "Space Analyzer Pro" (a WinUI 3 system-monitoring app). Focus on information hierarchy and scannability: whether stat cards, lists, charts, and tables let a user extract meaning at a glance, and whether density is appropriate. Report concisely: (1) screen, (2) hierarchy/scannability problems, (3) top 3 fixes improving glanceability.`,
+  interaction: `You are an INTERACTION / AFFORDANCE ENGINEER reviewing this UI screenshot of "Space Analyzer Pro" (a WinUI 3 app). Focus on affordances and state communication: button hierarchy, hover/focus/pressed states, empty/loading/error states, and whether each control's purpose is obvious without trial-and-error. Report concisely: (1) screen, (2) affordance/state problems, (3) top 3 fixes naming the exact control/pattern.`,
+};
+
 function parseArgs(argv) {
   const opts = {
     prompt: process.env.VISION_PROMPT || null,
+    persona: null,
     mode: 'ui',
     viewport: null,
     label: null,
@@ -91,6 +146,7 @@ function parseArgs(argv) {
     else if (a === '--high') { opts.maxDim = 1280; opts.quality = 85; }
     else if (a === '--lines') opts.lines = true;
     else if (a === '--raw') opts.raw = true;
+    else if (a === '--persona') opts.persona = argv[++i];
     else if (a === '--json') opts.json = true;
     else if (IMAGE_EXT.test(a)) images.push(a);
     else if (CODE_EXT.test(a)) codeFiles.push(a);
@@ -163,7 +219,11 @@ function buildMetadata(opts, images, codeFiles, dims) {
   if (opts.context) lines.push(`Additional context: ${opts.context}`);
   lines.push('=== END CONTEXT ===');
   lines.push('Use the context above to ground your analysis; do not assume viewports or screens not stated.');
-  lines.push('Always end with a "Top 3 fixes:" list, most impactful first.');
+  // The `winui` persona prompt already closes with an explicit "Top 3 fixes:" list,
+  // so avoid appending a redundant instruction for that mode.
+  if (opts.mode !== 'winui') {
+    lines.push('Always end with a "Top 3 fixes:" list, most impactful first.');
+  }
   return lines.join('\n');
 }
 
@@ -196,7 +256,7 @@ async function callOllama(prompt, payloadImages, attempt = 1) {
 async function analyze(argv) {
   const { opts, images, codeFiles } = parseArgs(argv);
   if (!images.length) {
-    console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare] [--viewport WxH] [--label "x"] [--context "x"] [--lines] [--low|--high]');
+    console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare|winui] [--persona <name|all>] [--viewport WxH] [--label "x"] [--context "x"] [--lines] [--low|--high]');
     process.exit(1);
   }
 
@@ -213,18 +273,53 @@ async function analyze(argv) {
 
   const codeContext = await buildCodeContext(codeFiles, opts.lines);
 
-  const basePrompt = opts.prompt || MODE_PROMPTS[opts.mode] || MODE_PROMPTS.ui;
   const meta = opts.raw ? '' : `\n\n${buildMetadata(opts, images, codeFiles, dims)}`;
-  const finalPrompt = basePrompt + meta +
-    (codeContext ? `\n\nThe following source code is provided as context:\n${codeContext}` : '');
+  const codeBlock = codeContext ? `\n\nThe following source code is provided as context:\n${codeContext}` : '';
 
-  console.error(`[vision] model=${MODEL} mode=${opts.mode} images=${images.length} codeFiles=${codeFiles.length} maxDim=${opts.maxDim} q=${opts.quality}`);
+  // --persona all: run every specialist lens on the SAME image(s), then a
+  // cross-persona consensus note. Issues flagged by >1 lens are the reliable ones.
+  if (opts.persona === 'all') {
+    const results = [];
+    for (const key of PERSONA_ORDER) {
+      const lens = PERSONA_PROMPTS[key] + "\n\n" + PERSONA_GUARDRAIL;
+      const finalPrompt = lens + meta + codeBlock;
+      console.error(`[vision] model=${MODEL} persona=${key} images=${images.length}`);
+      const text = await callOllama(finalPrompt, payloadImages);
+      results.push({ persona: key, name: PERSONA_NAMES[key] || key, analysis: text });
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({
+        model: MODEL, persona: "all", label: opts.label, viewport: opts.viewport,
+        images: images.map((p, i) => ({ file: p, width: dims[i].w, height: dims[i].h })),
+        codeFiles, analyses: results,
+      }, null, 2));
+    } else {
+      for (const r of results) {
+        console.log(`### Persona: ${r.name} (${r.persona})\n\n${r.analysis}\n`);
+      }
+      console.log("### Cross-persona consensus\n\nThe issues most worth acting on are those flagged by MORE THAN ONE lens above — treat them as high-confidence. Single-lens nits are lower priority. Consolidate duplicates across sections into one fix each.\n");
+    }
+    return;
+  }
+
+  // Single lens: explicit --persona (specialist or winui), else --mode, else 'ui'.
+  const lensKey = (opts.persona && (PERSONA_PROMPTS[opts.persona] || MODE_PROMPTS[opts.persona]))
+    ? opts.persona : null;
+  const lens = opts.prompt
+    ? opts.prompt
+    : lensKey
+      ? (PERSONA_PROMPTS[lensKey] ? PERSONA_PROMPTS[lensKey] + "\n\n" + PERSONA_GUARDRAIL : MODE_PROMPTS[lensKey])
+      : (MODE_PROMPTS[opts.mode] || MODE_PROMPTS.ui);
+  const finalPrompt = lens + meta + codeBlock;
+
+  console.error(`[vision] model=${MODEL} mode=${opts.mode} persona=${opts.persona || "(none)"} images=${images.length} codeFiles=${codeFiles.length} maxDim=${opts.maxDim} q=${opts.quality}`);
   const text = await callOllama(finalPrompt, payloadImages);
 
   if (opts.json) {
     console.log(JSON.stringify({
       model: MODEL,
       mode: opts.mode,
+      persona: opts.persona || null,
       label: opts.label,
       viewport: opts.viewport,
       images: images.map((p, i) => ({ file: p, width: dims[i].w, height: dims[i].h })),
@@ -240,6 +335,6 @@ const cmd = process.argv[2];
 if (cmd === 'analyze') {
   await analyze(process.argv.slice(3));
 } else {
-  console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"]');
+  console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare|winui] [--persona <name|all>]');
   process.exit(1);
 }

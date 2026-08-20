@@ -52,7 +52,7 @@ Space Analyzer Pro is available in one mode:
 
 ## Quick Start
 
-The **active and only GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.3).
+The **active and only GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.4.0).
 
 ### Get a prebuilt build (optional)
 
@@ -82,13 +82,13 @@ dotnet run --project gui-winui/SpaceAnalyzer
 > `SPACE_ANALYZER_SCANNER` / `SPACE_ANALYZER_CLEANER` environment variables.
 
 **WinUI 3 state (v4.0.0):**
-- **Stable build** against Windows App SDK 2.3 / .NET 10
-- **All 11 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, System, Cleanup, Settings, About
+- **Stable build** against Windows App SDK 2.4.0 / .NET 10
+- **All 13 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, Installed Apps, System, Cleanup, USN Journal, Settings, About
 - **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
 - **Dashboard stat cards** with live system resource refresh and resource-history canvas charts
 - **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
 - **Ollama integration** via `OllamaClient.cs` with `JsonStringEnumConverter` for correct `ChatRole` serialization
-- **Scan page:** Quick/Default/Deep radio depth modes, custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
+- **Scan page:** scan-depth ComboBox (Quick/Default/Deep/Custom) with custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
 - **AppLog diagnostics** — file logger at `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log` with NAV/PAGE/ACTION/ERROR categories
 
 ### Prerequisites
@@ -125,6 +125,27 @@ cargo run --bin space-analyzer-cli -- history --limit 10
 
 # Run duplicate-file analysis
 cargo run --bin space-analyzer-cli -- dedup --path .
+
+# Inventory installed apps across drives / package managers
+cargo run --bin space-analyzer-cli -- app-inventory --format json
+
+# Lexical file search (extension / keyword / keyword + size + hidden)
+cargo run --bin space-analyzer-cli -- search --path . --extension rs --limit 20
+
+# Semantic (embeddings) search — requires Ollama
+cargo run --bin space-analyzer-cli -- semantic-search --path . --query "tax documents"
+
+# Free-form question about a saved scan (read-only agentic loop)
+cargo run --bin space-analyzer-cli -- ask "what is using the most space?"
+
+# Read/write settings
+cargo run --bin space-analyzer-cli -- settings get
+
+# Inspect the embedded database
+cargo run --bin space-analyzer-cli -- db info
+
+# Enumerate the NTFS USN journal for a volume
+cargo run --bin space-analyzer-cli -- usn --drive C
 
 # Global flags (apply to all subcommands)
 --format {text,json,csv,jsonl,md}  Output format (default: text)
@@ -166,7 +187,7 @@ cargo run --bin space-analyzer-cli -- dedup --path .
 ### AI Integration (Optional)
 - **Ollama-powered AI Assistant** with chat, streaming, and tool-calling
 - **Smart Search** using semantic embeddings for natural-language file queries
-- **14+ tool registry** exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies/stop_scan/export_results to the LLM
+- **15+ tool registry** exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies/stop_scan/export_results/classify_file/get_bloat_findings/get_recommendations/semantic_search to the LLM
 - **Dynamic tool choice** — the assistant resolves which tools to call based on the user's message content, mirroring the Rust backend's `resolve_tool_choice` logic
 - **Enriched ChatRequest** — `Options`, `Think`, and `KeepAlive` fields supported for fine-grained model control
 - **100% local** — no cloud APIs, no telemetry
@@ -188,11 +209,11 @@ cargo run --bin space-analyzer-cli -- dedup --path .
 
 ## Architecture
 
-The GUI is **WinUI 3** (`gui-winui/`, C# + Windows App SDK 2.3), the actively developed frontend.
+The GUI is **WinUI 3** (`gui-winui/`, C# + Windows App SDK 2.4.0), the actively developed frontend.
 
 | GUI | Path | Stack | Status |
 |-----|------|-------|--------|
-| **WinUI 3** | `gui-winui/` | C# + Windows App SDK 2.3 | Active development |
+| **WinUI 3** | `gui-winui/` | C# + Windows App SDK 2.4.0 | Active development |
 
 The core Rust library (`src/`) provides the database, Ollama integration, system monitoring, and CLI. WinUI 3 consumes this library via subprocess calls to the CLI.
 
@@ -216,7 +237,7 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 
 | Component | Implementation | Notes |
 |---|---|---|
-| **GUI (WinUI 3)** | Windows App SDK 2.3 (C#/.NET 10) | Fluent Design, Mica backdrop, 11 pages |
+| **GUI (WinUI 3)** | Windows App SDK 2.4.0 (C#/.NET 10) | Fluent Design, Mica backdrop, 13 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `scan-engine` (rayon-parallel) | CPU mode default |
 | **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
@@ -261,7 +282,7 @@ just help          # Show all commands
   src/                       # Core Rust library (no GUI)
    main.rs                  # CLI entry point
    lib.rs                   # Library exports
-   cli/                     # CLI module (subcommands: scan, disk-info, history, dedup)
+    cli/                     # CLI module (subcommands: scan, disk-info, history, dedup, app-inventory, search, semantic-search, ask, settings, db, usn)
      args.rs                # Clap subcommand definitions
      mod.rs                 # Subcommand dispatch
      scan.rs                # Directory scanning logic
@@ -271,7 +292,7 @@ just help          # Show all commands
    ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
   database/                # SQLite layer (scans, embeddings, settings, workflows)
   workflows/               # Analysis workflow engine (5 categories, 7 actions, 4 triggers)
-  tool_registry/           # 12+ tools exposed to the LLM
+   tool_registry/           # 15+ tools exposed to the LLM
   category.rs              # File extension → 12-category mapping
   offline_ai.rs            # Heuristic bloat pattern classifier
   file_relations.rs        # Dependency report (hardlinks, symlinks, siblings)
@@ -283,7 +304,7 @@ just help          # Show all commands
 gui-winui/                 # WinUI 3 desktop GUI (active development)
   SpaceAnalyzer.sln        # Visual Studio solution
   SpaceAnalyzer/
-    SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.3
+    SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.4.0
     App.xaml(.cs)          # Application entry
     MainWindow.xaml(.cs)   # NavigationView shell
     Views/                 # XAML pages (Dashboard, Scan, Settings, etc.)
@@ -295,7 +316,7 @@ gui-winui/                 # WinUI 3 desktop GUI (active development)
     Assets/                # Icons, images
 
 native/                    # Standalone Rust binaries
-  scanner/                 # Windows NTFS scanner (USN Journal, MFT, hardlinks)
+  win-usn/                 # Windows NTFS scanner (USN Journal, MFT, hardlinks)
   file_deduplicator/       # GPU-accelerated duplicate file finder
   node_modules_cleaner/    # Node.js dev-dependency cleanup tool
 
@@ -332,14 +353,12 @@ config/                    # Tool configuration (non-secret)
 
 ## Documentation
 
-- [Full README](docs/README.md) — comprehensive project documentation
-- [Architecture](docs/architecture/) — design decisions, diagrams, project structure
-- [Development Guide](docs/development/) — setup, testing, database migrations
+- [Architecture Decisions](docs/ARCHITECTURE_DECISIONS.md) — key decisions + on-hold rules (read before automation/cleanup)
+- [Data Flow](docs/DATA_FLOW.md) — subsystem map + file locator
 - [AI Integration](docs/ai/) — Ollama setup, embeddings, ML integration, benchmarks
-- [Troubleshooting](docs/guides/TROUBLESHOOTING.md) — common issues
-- [Performance](docs/performance/PERFORMANCE.md) — optimization notes
-- [Security](docs/implementations/SECURITY.md) — security model
-- [Changelog](docs/CHANGELOG.md) — release notes
+- [Guides](docs/guides/) — troubleshooting, native builds, GPU fixes
+- [Changelog](docs/CHANGELOG.md) — release notes (current state in `docs/changelog/unreleased.md`)
+- [Security](SECURITY.md) — local-first security model
 - [Contributing](CONTRIBUTING.md) — how to contribute
 
 ---

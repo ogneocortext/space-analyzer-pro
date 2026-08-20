@@ -107,6 +107,7 @@ class OllamaClient:
         options: dict[str, Any] | None = None,
         images: Iterable[bytes] | None = None,
         system: str | None = None,
+        keep_alive: "float | str | None" = None,
     ) -> str:
         """Call ``/api/generate`` and return the concatenated response text.
 
@@ -147,6 +148,8 @@ class OllamaClient:
             import base64
 
             body["images"] = [base64.b64encode(img).decode("ascii") for img in images]
+        if keep_alive is not None:
+            body["keep_alive"] = keep_alive
 
         try:
             payload = self._request_json("POST", "/api/generate", json_body=body)
@@ -277,6 +280,7 @@ class OllamaClient:
         think: bool | None = None,
         format: str | dict[str, Any] | None = None,
         options: dict[str, Any] | None = None,
+        keep_alive: "float | str | None" = None,
     ) -> str:
         """Call ``/api/chat`` and return the assistant's response text.
 
@@ -292,6 +296,10 @@ class OllamaClient:
             format: Response format constraint, e.g. ``"json"`` to force
                 valid JSON output.
             options: Generation options (temperature, num_predict, ...).
+            keep_alive: How long to keep the model resident in VRAM after the
+                call (seconds, or a string like ``"5m"``/``"0"``). Pass
+                ``0`` to evict immediately; useful for freeing VRAM before
+                loading a different model.
 
         Returns:
             The assistant's response text.
@@ -310,6 +318,8 @@ class OllamaClient:
             body["format"] = format
         if options:
             body["options"] = dict(options)
+        if keep_alive is not None:
+            body["keep_alive"] = keep_alive
 
         try:
             payload = self._request_json("POST", "/api/chat", json_body=body)

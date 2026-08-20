@@ -16,7 +16,7 @@
                 <StackPanel Spacing="{StaticResource Space.SM}">
                     <TextBlock Text="About" Style="{StaticResource Type.PageTitle}"/>
                     <TextBlock Text="Space Analyzer Pro" Style="{StaticResource Type.CardTitle}" Opacity="0.8"/>
-                    <TextBlock Text="Version 4.0.0" Style="{StaticResource Type.Caption}" Opacity="0.6"/>
+                    <TextBlock Text="Version 4.0.0" Style="{StaticResource StatusBarText}"/>
                 </StackPanel>
 
                 <!-- Description -->

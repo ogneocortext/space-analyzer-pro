@@ -133,88 +133,29 @@ public partial class ToolExecutor
         CancellationToken ct,
         IProgress<StreamProgress>? progress = null)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = _scanner.ScannerPath,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        foreach (var a in args) psi.ArgumentList.Add(a);
-
-        using var process = new Process { StartInfo = psi };
-        process.Start();
-
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-
-        // When progress reporting is requested, drain stderr line-by-line so we can
-        // parse `__PROGRESS__` lines live (the same envelope the `scan` subcommand
-        // emits). Otherwise read stderr in one shot for error reporting.
-        var stderrTask = progress is not null
-            ? ReadStderrWithProgressAsync(process.StandardError, progress, ct)
-            : process.StandardError.ReadToEndAsync(ct);
-
         try
         {
-            await process.WaitForExitAsync(linkedCts.Token);
+            var psi = ProcessRunner.CreateCliStartInfo(_scanner.ScannerPath, args);
+            var result = await ProcessRunner.RunAsync(psi, ct, TimeSpan.FromMinutes(2), progress);
+            if (result.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(result.StdErr)
+                    ? (string.IsNullOrWhiteSpace(result.StdOut) ? "No details available." : result.StdOut)
+                    : result.StdErr;
+                return $"Error (exit {result.ExitCode}): {detail}";
+            }
+            return result.StdOut;
+        }
+        catch (TimeoutException)
+        {
+            return "Operation timed out after 2 minutes.";
         }
         catch (OperationCanceledException)
         {
-            try { process.Kill(entireProcessTree: true); } catch { }
             return ct.IsCancellationRequested
                 ? "Operation was cancelled by the user."
                 : "Operation timed out after 2 minutes.";
         }
-
-        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        var stderr = await stderrTask;
-
-        if (process.ExitCode != 0)
-        {
-            var detail = string.IsNullOrWhiteSpace(stderr) ? string.IsNullOrWhiteSpace(stdout) ? "No details available." : stdout : stderr;
-            return $"Error (exit {process.ExitCode}): {detail}";
-        }
-
-        return stdout;
-    }
-
-    /// <summary>
-    /// Reads stderr line by line, parsing <c>__PROGRESS__</c>-prefixed lines into
-    /// <see cref="StreamProgress"/> and reporting them via <paramref name="progress"/>.
-    /// Mirrors <c>ScannerService.ReadStderrWithProgressAsync</c> so the same live
-    /// progress envelope works for the generic CLI tools (e.g. <c>search</c>) that
-    /// don't have a dedicated streaming method.
-    /// </summary>
-    private static async Task<string> ReadStderrWithProgressAsync(
-        System.IO.StreamReader stderr,
-        IProgress<StreamProgress> progress,
-        CancellationToken ct)
-    {
-        var sb = new System.Text.StringBuilder();
-        while (true)
-        {
-            var line = await stderr.ReadLineAsync(ct);
-            if (line is null)
-                break;
-            sb.AppendLine(line);
-            if (line.StartsWith("__PROGRESS__"))
-            {
-                var json = line["__PROGRESS__".Length..];
-                try
-                {
-                    var sp = System.Text.Json.JsonSerializer.Deserialize<StreamProgress>(json);
-                    if (sp is not null)
-                        progress.Report(sp);
-                }
-                catch
-                {
-                    // Ignore malformed progress lines
-                }
-            }
-        }
-        return sb.ToString();
     }
 
     private static string GetString(Dictionary<string, object> args, string key)

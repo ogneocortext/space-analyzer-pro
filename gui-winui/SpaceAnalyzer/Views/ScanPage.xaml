@@ -35,7 +35,7 @@
                     <!-- Path Selection -->
                     <Border Grid.Column="0" Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}">
                         <StackPanel Spacing="{StaticResource Space.MD}">
-                            <TextBlock Text="Directory" Style="{StaticResource Type.SubTitle}" />
+                            <TextBlock Text="Directory" Style="{StaticResource Type.SectionTitle}" />
                             <Grid ColumnSpacing="{StaticResource Space.SM}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -64,7 +64,7 @@
                                     Value="{x:Bind VM.DepthValue, Mode=TwoWay}"
                                     Visibility="{x:Bind VM.ShowCustomDepthSlider, Mode=OneWay}"
                                     ToolTipService.ToolTip="Number of folder levels to descend when scanning (1–20)."/>
-                            <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                            <TextBlock Text="{x:Bind VM.ResultDepthDisplay, Mode=OneWay}" Style="{StaticResource StatusBarText}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -72,12 +72,19 @@
                 <!-- Primary Scan Controls -->
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.MD}">
                     <StackPanel Spacing="{StaticResource Space.SM}">
+                        <!-- Action cluster: primary actions (Start/Stop) on the left,
+                             a visual separator, then secondary actions (Export + format)
+                             pushed right, with a high-contrast live status. Conventions:
+                             PrimaryButton = primary, DangerButton = destructive,
+                             SecondaryButton = secondary, StatusBarText = status. -->
                         <Grid ColumnSpacing="{StaticResource Space.MD}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <Button Grid.Column="0" Content="{x:Bind VM.IsScanning, Mode=OneWay, Converter={StaticResource BoolToScanButtonText}}"
@@ -88,17 +95,19 @@
                                     AutomationProperties.Name="Stop Scan"
                                     Style="{StaticResource DangerButton}"
                                     IsEnabled="{x:Bind VM.CanStopScan, Mode=OneWay}"/>
-                            <Button Grid.Column="2" Content="Export" Click="Export_Click"
+                            <Border Grid.Column="2" Width="1" VerticalAlignment="Stretch"
+                                    Background="{ThemeResource CardStrokeColorDefaultBrush}" Margin="0,4"/>
+                            <Button Grid.Column="4" Content="Export" Click="Export_Click"
                                     AutomationProperties.Name="Export Results"
                                     Style="{StaticResource SecondaryButton}"
                                     IsEnabled="{x:Bind VM.HasResult, Mode=OneWay}"/>
-                            <ComboBox Grid.Column="3" Width="70" SelectedItem="{x:Bind VM.ExportFormat, Mode=TwoWay}"
+                            <ComboBox Grid.Column="5" Width="70" SelectedItem="{x:Bind VM.ExportFormat, Mode=TwoWay}"
                                       ItemsSource="{x:Bind VM.ExportFormats, Mode=OneWay}"
                                       VerticalAlignment="Center"
                                       AutomationProperties.Name="Export format"/>
-                            <TextBlock Grid.Column="4" Text="{x:Bind VM.LiveStatusDisplay, Mode=OneWay}"
-                                       Style="{StaticResource Type.Caption}" VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" Opacity="0.7"/>
+                            <TextBlock Grid.Column="6" Text="{x:Bind VM.LiveStatusDisplay, Mode=OneWay}"
+                                        Style="{StaticResource StatusBarText}"
+                                        TextTrimming="CharacterEllipsis"/>
                         </Grid>
                         <Grid ColumnSpacing="{StaticResource Space.MD}">
                             <Grid.ColumnDefinitions>
@@ -111,7 +120,7 @@
                             <CheckBox Grid.Column="1" Content="Incremental cache" IsChecked="{x:Bind VM.UseFileCache, Mode=TwoWay}"
                                       Style="{StaticResource FieldCheckBox}"/>
                             <TextBlock Grid.Column="2" Text="Hidden and system files (e.g. AppData) are skipped unless this is enabled."
-                                       Style="{StaticResource Type.Caption}" Opacity="0.7" VerticalAlignment="Center"/>
+                                        Style="{StaticResource Type.Caption}" VerticalAlignment="Center"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -119,7 +128,7 @@
                 <!-- Progress -->
                 <StackPanel Spacing="{StaticResource Space.XS}" Visibility="{x:Bind VM.IsScanningVisibility, Mode=OneWay}">
                     <ProgressBar Value="{x:Bind VM.ScanProgress, Mode=OneWay}" Maximum="100" Style="{StaticResource MinimalProgressBar}"/>
-                    <TextBlock Text="{x:Bind VM.LiveFilesDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.6"/>
+                    <TextBlock Text="{x:Bind VM.LiveFilesDisplay, Mode=OneWay}" Style="{StaticResource StatusBarText}"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}"
                             Visibility="{x:Bind VM.IsNotScanningVisibility, Mode=OneWay}">
@@ -150,7 +159,7 @@
                 <Border Style="{StaticResource DashboardCardBorder}" Padding="{StaticResource Thickness.LG}" Visibility="{x:Bind VM.HasEmptyDirs, Mode=OneWay}">
                     <StackPanel Spacing="{StaticResource Space.SM}">
                         <TextBlock Text="Empty Directories" Style="{StaticResource Type.SubTitle}" Foreground="{ThemeResource WarningTextBrush}"/>
-                        <TextBlock Text="{x:Bind VM.EmptyDirsCount, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                        <TextBlock Text="{x:Bind VM.EmptyDirsCount, Mode=OneWay}" Style="{StaticResource StatusBarText}"/>
                         <TextBlock Text="empty directories" Style="{StaticResource Type.Caption}" Opacity="0.5" Margin="0,-4,0,0"/>
                         <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto">
                             <ItemsRepeater ItemsSource="{x:Bind VM.EmptyDirs, Mode=OneWay}">
@@ -248,7 +257,7 @@
                                         <StackPanel Grid.Column="0" Spacing="{StaticResource Space.XS}">
                                             <TextBlock Text="{x:Bind VM.ResultSpeedDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
                                             <TextBlock Text="Speed" Style="{StaticResource Type.StatLabel}"/>
-                                            <TextBlock Text="{x:Bind VM.ResultSpeedMbDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                            <TextBlock Text="{x:Bind VM.ResultSpeedMbDisplay, Mode=OneWay}" Style="{StaticResource StatusBarText}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
                                             <TextBlock Text="{x:Bind VM.ResultDurationDisplay, Mode=OneWay}" Style="{StaticResource Type.StatValue}"/>
@@ -269,7 +278,7 @@
                                             <TextBlock Text="Reclaimable" Style="{StaticResource Type.StatLabel}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="{StaticResource Space.XS}">
-                                            <TextBlock Text="{x:Bind VM.ResultTimestampDisplay, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                            <TextBlock Text="{x:Bind VM.ResultTimestampDisplay, Mode=OneWay}" Style="{StaticResource StatusBarText}"/>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -295,7 +304,7 @@
                                                     <TextBlock Grid.Column="0" Text="{x:Bind Extension, Mode=OneTime}" Style="{StaticResource Type.Caption}" FontFamily="Consolas" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
                                                     <ProgressBar Grid.Column="1" Value="{x:Bind Percentage, Mode=OneTime}" Maximum="100" Style="{StaticResource MinimalProgressBar}" Margin="8,0"/>
                                                     <TextBlock Grid.Column="2" Text="{x:Bind CountDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}"/>
-                                                    <TextBlock Grid.Column="3" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                                    <TextBlock Grid.Column="3" Text="{x:Bind SizeDisplay, Mode=OneTime}" Style="{StaticResource StatusBarText}"/>
                                                 </Grid>
                                             </DataTemplate>
                                         </breakdown:BreakdownListControl.RowTemplate>

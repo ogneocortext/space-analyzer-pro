@@ -537,6 +537,16 @@
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="VerticalAlignment" Value="Center"/>
             </Style>
+
+            <!-- Status / live-message text: full-opacity, WCAG-AA contrast. Inline
+                 Opacity="0.6/0.7" overrides on status TextBlocks previously dropped
+                 contrast below AA in dark mode (UX audit 2026-08-20). Use this for
+                 every live status line instead of a dimmed Type.Caption. -->
+            <Style x:Key="StatusBarText" TargetType="TextBlock" BasedOn="{StaticResource Type.Caption}">
+                <Setter Property="Opacity" Value="1.0"/>
+                <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

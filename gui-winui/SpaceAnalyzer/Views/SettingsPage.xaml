@@ -148,6 +148,17 @@
                         <ContentControl IsEnabled="{x:Bind VM.OllamaOptionsEnabled, Mode=OneWay}" HorizontalContentAlignment="Stretch">
                             <StackPanel Spacing="{StaticResource Space.MD}">
                             <TextBlock Text="Connection" Style="{StaticResource Type.GroupHeading}"/>
+                            <Grid ColumnSpacing="{StaticResource Space.SM}" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Column="0" VerticalAlignment="Center" Width="16" Height="16">
+                                    <Ellipse Width="12" Height="12" Fill="{x:Bind VM.ConnectionStatusBrush, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <ProgressRing Width="16" Height="16" IsActive="{x:Bind VM.IsCheckingConnection, Mode=OneWay}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                </Grid>
+                                <TextBlock Grid.Column="1" Text="{x:Bind VM.ConnectionStatusText, Mode=OneWay}" Style="{StaticResource StatusBarText}"/>
+                            </Grid>
                             <StackPanel Spacing="{StaticResource Space.MD}">
                                 <TextBlock Text="Server URL" Style="{StaticResource Type.FieldHeading}"/>
                                 <TextBox Text="{x:Bind VM.OllamaUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -179,7 +190,11 @@
                             <StackPanel Spacing="{StaticResource Space.SM}"
                                         Visibility="{x:Bind VM.HasDetectedModels, Mode=OneWay}">
                                 <TextBlock Text="Installed models" Style="{StaticResource Type.FieldHeading}"/>
-                                <ItemsControl ItemsSource="{x:Bind VM.DetectedModels, Mode=OneWay}">
+                                <TextBox Text="{x:Bind VM.ModelSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         PlaceholderText="Filter models..."
+                                         AutomationProperties.Name="Filter installed models"
+                                         Style="{StaticResource FieldTextBox}"/>
+                                <ItemsControl ItemsSource="{x:Bind VM.FilteredModels, Mode=OneWay}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <ItemsWrapGrid Orientation="Horizontal"/>
@@ -196,6 +211,9 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                <TextBlock Text="No models match your filter."
+                                           Style="{StaticResource Type.Caption}"
+                                           Visibility="{x:Bind VM.HasFilteredModels, Mode=OneWay, Converter={StaticResource InverseBoolToVisibility}}"/>
                                 <TextBlock Text="{x:Bind VM.DetectedModelsSummary, Mode=OneWay}"
                                             Style="{StaticResource Type.Caption}"/>
                             </StackPanel>

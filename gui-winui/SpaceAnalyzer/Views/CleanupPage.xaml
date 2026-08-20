@@ -156,11 +156,11 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Top Candidates by Size" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                <TextBlock Text="Top Candidates by Size" Style="{StaticResource StatusBarText}"/>
                                 <Grid x:Name="CandidatesBarChartGrid" Height="180" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Risk Distribution" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                <TextBlock Text="Risk Distribution" Style="{StaticResource StatusBarText}"/>
                                 <Grid x:Name="RiskDonutGrid" Height="180" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
                             </StackPanel>
                         </Grid>
@@ -185,7 +185,7 @@
                                             </StackPanel>
                                             <TextBlock Style="{StaticResource Type.Body}" Opacity="0.8" Text="{x:Bind Reason, Mode=OneTime}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space.SM}">
-                                                <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.7" Text="{x:Bind RiskLevelDisplay, Mode=OneTime}"/>
+                                                <TextBlock Style="{StaticResource StatusBarText}" Text="{x:Bind RiskLevelDisplay, Mode=OneTime}"/>
                                                 <Border Width="8" Height="8" CornerRadius="4"
                                                         Background="{x:Bind RiskLevelBrush, Mode=OneTime}"/>
                                             </StackPanel>
@@ -250,7 +250,7 @@
                                             <CheckBox IsChecked="{x:Bind IsSelected, Mode=TwoWay}" VerticalAlignment="Center"/>
                                             <StackPanel Spacing="{StaticResource Space.XS}" HorizontalAlignment="Stretch">
                                                 <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind Name, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.7" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Style="{StaticResource StatusBarText}" Text="{x:Bind Path, Mode=OneTime}" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                             <TextBlock Style="{StaticResource Type.Body}" Text="{x:Bind SizeDisplay, Mode=OneTime}" Opacity="0.8" VerticalAlignment="Center"/>
                                             <TextBlock Style="{StaticResource Type.Caption}" Opacity="0.6" Text="{x:Bind LastWriteDisplay, Mode=OneTime}" VerticalAlignment="Center"/>

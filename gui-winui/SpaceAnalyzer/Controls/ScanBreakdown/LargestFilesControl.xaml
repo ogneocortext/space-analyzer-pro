@@ -95,7 +95,7 @@
         <!-- Empty state -->
         <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="6" Padding="16"
                 Visibility="{x:Bind EmptyStateVisibility, Mode=OneWay}">
-            <TextBlock Text="{x:Bind EmptyStateText, Mode=OneWay}" Style="{StaticResource Type.Caption}" Opacity="0.6" TextAlignment="Center"/>
+            <TextBlock Text="{x:Bind EmptyStateText, Mode=OneWay}" Style="{StaticResource StatusBarText}" TextAlignment="Center"/>
         </Border>
     </StackPanel>
 </UserControl>

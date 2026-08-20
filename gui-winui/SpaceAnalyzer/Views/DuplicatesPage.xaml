@@ -176,11 +176,11 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Top Groups by Size" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                <TextBlock Text="Top Groups by Size" Style="{StaticResource StatusBarText}"/>
                                 <Grid x:Name="TopGroupsBarChartGrid" Height="180" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1" Spacing="{StaticResource Space.SM}">
-                                <TextBlock Text="Wasted Space Distribution" Style="{StaticResource Type.Caption}" Opacity="0.7"/>
+                                <TextBlock Text="Wasted Space Distribution" Style="{StaticResource StatusBarText}"/>
                                 <Grid x:Name="WastedSpaceDonutGrid" Height="180" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
                             </StackPanel>
                         </Grid>

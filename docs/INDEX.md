@@ -4,7 +4,7 @@
 > build commands. This file tells you **what each doc is and whether it reflects current
 > status**, so you don't waste time on stale material.
 
-## Project Status (as of 2026-08-19)
+## Project Status (as of 2026-08-20)
 
 - **What this is:** Space Analyzer Pro — a disk-space analysis tool. Core is Rust
   (`src/`); the active desktop app is **WinUI 3 (C#)** in `gui-winui/`.
@@ -34,13 +34,12 @@
   an integration boundary.
 - `CHANGELOG.md` — version history; `[Unreleased]` holds the latest fixes (e.g. Settings
   Store/ViewModel hardening, 2026-08-11).
-- `docs/archive/FEATURE_GAP_ANALYSIS.md` — WinUI features vs README promises. Most rows ✅; the only
-  ❌ is workflow triggers/scheduler (on hold, see above).
+- `docs/CHANGELOG.md` + `AGENTS.md` — feature status; the only on-hold item is workflow triggers/scheduler
+   (Architecture Decisions §8).
 - `ARCHITECTURE_DECISIONS.md` — key decisions + on-hold rules (GPU toggle placeholder,
   workflow triggers). **Read this before any automation/cleanup change.**
-- `ISSUES.md` (generated from `issues.json` via `python docs/generate_status_summary.py --write`; gitignored) + `issues.json` — open-issue tracker (29 open, almost all UI/UX/layout
-   polish). `issues.json` is the authoritative structured source.
-- `docs/archive/IMPROVEMENTS.md` — Ollama module improvement log (historical; items mostly applied).
+- `ISSUES.md` (generated from `issues.json` via `python docs/generate_status_summary.py --write`; gitignored) + `issues.json` — open-issue tracker (0 open; 125 done, 1 blocked). `issues.json` is the authoritative structured source.
+- `docs/ai/` — Ollama benchmarks and AI recommendations (reference).
 - `../assets/diagrams/architecture.md`, `../assets/diagrams/workflow.md` — current
   architecture and data-flow diagrams.
 - `gui-winui/README.md` — WinUI 3 build & architecture (active GUI).
@@ -56,16 +55,13 @@
   outputs of the dashboard server, vision pipeline, and Playwright captures — see
   `DATA_FLOW.md` §4 for the full list.
 
-## Archive (historical — do NOT rely on for current status)
+## Archive (historical — out of the tracked tree)
 
-- `archive/web-era/` — deprecated Vue/Tauri web frontend (40+ files). Superseded by WinUI.
-- `archive/reports/` — 80+ historical status reports from prior agent runs.
-- `archive/guides/`, `archive/trackers/` — old build instructions and issue CSVs.
-- `archive/scripts/` — legacy Python helper scripts (some superseded by the Rust CLI).
-- `archive/ux-pipeline/` — one-off UX analysis artifacts (report, screenshots, links).
-- `archive/IMPROVEMENTS.md`, `archive/FEATURE_GAP_ANALYSIS.md` — relocated one-off analysis docs (kept on disk, gitignored).
-- `ai/`, `architecture/`, `guides/`, `implementations/` — supplementary/reference docs.
-
+- Older analysis/status docs under `archive/` and `docs/archive/` are **gitignored and not part of the tracked tree** — do not rely on them for current status.
+- Current status lives in `AGENTS.md`, `docs/CHANGELOG.md` (`docs/changelog/unreleased.md`), and `docs/ISSUES.md` (regenerated from `issues.json`).
+- `docs/ai/` — Ollama benchmarks and AI recommendations (reference).
+- `docs/guides/` — troubleshooting, native builds, GPU fixes (reference).
+- `docs/implementations/` — security model and cleanup notes (reference).
 ## How to verify status quickly
 
 1. This file + `CHANGELOG.md` → `[Unreleased]` for the latest state.

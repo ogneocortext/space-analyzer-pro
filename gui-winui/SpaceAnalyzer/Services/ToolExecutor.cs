@@ -274,23 +274,9 @@ public partial class ToolExecutor : IDisposable
         bool hardlinkCountUnknown = false;
         try
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "fsutil",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            psi.ArgumentList.Add("hardlink");
-            psi.ArgumentList.Add("list");
-            psi.ArgumentList.Add(path);
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-            await process.WaitForExitAsync(linkedCts.Token);
-            var output = await process.StandardOutput.ReadToEndAsync();
-            hardlinkCount = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+            var psi = ProcessRunner.CreateCliStartInfo("fsutil", new[] { "hardlink", "list", path });
+            var result = await ProcessRunner.RunAsync(psi, ct, TimeSpan.FromSeconds(5));
+            hardlinkCount = result.StdOut.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
         }
         catch { hardlinkCount = -1; hardlinkCountUnknown = true; }
 
