@@ -183,8 +183,30 @@ public partial class AIAssistantViewModel
                         var toolSig = fnName + "|" + JsonSerializer.Serialize(args, s_toolArgJson);
                         bool isRepeatCall = !executedToolSignatures.Add(toolSig);
 
+                        // Use the tool-call id returned by Ollama so the tool result
+                        // message's tool_call_id matches the assistant's tool_calls id
+                        // (OpenAI/Ollama tool-use spec). Fall back to a generated id
+                        // when the model omits one. Computed before the live progress
+                        // bubble so the bubble can carry the id from the start.
+                        var toolCallId = !string.IsNullOrWhiteSpace(toolCall.Id)
+                            ? toolCall.Id
+                            : $"call_{Guid.NewGuid():N}";
+
                         ThinkingStatus = $"Running {fnName}...";
                         System.Diagnostics.Debug.WriteLine($"[AI] Tool call: {fnName}");
+
+                        // Live tool-progress bubble: a Tool-role chat entry that fills
+                        // in with streamed progress text as the tool runs, mirroring the
+                        // final-answer token streaming. This surfaces scan progress (and
+                        // a simple "Running…" placeholder for instant tools) directly in
+                        // the conversation instead of only the status bar.
+                        var toolBubble = new AIChatMessage(
+                            ChatRole.Tool, $"[{fnName}] Running…",
+                            new List<ToolCallResponse> { toolCall }, toolCallId);
+                        _messages.Add(toolBubble);
+                        while (_messages.Count > MaxMessages)
+                            _messages.RemoveAt(0);
+                        OnPropertyChanged(nameof(ShowSuggestions));
 
                         // Live progress for scan-backed tools (run_scan, and the
                         // live-scan fallback of get_largest_files/search_files).
@@ -196,23 +218,18 @@ public partial class AIAssistantViewModel
                                 return;
                             firstProgress = false;
                             throttle.Restart();
-                            ThinkingStatus = p.Percentage > 0
+                            var status = p.Percentage > 0
                                 ? $"Running {fnName} — {p.Percentage:0}% · {p.FilesScanned:N0} files…"
                                 : p.FilesScanned > 0
                                     ? $"Running {fnName} — {p.FilesScanned:N0} files…"
                                     : $"Running {fnName}…";
+                            toolBubble.Content = $"[{fnName}] {status}";
+                            ThinkingStatus = status;
                         });
 
                         var result = await (_toolExecutor ?? throw new InvalidOperationException("ToolExecutor not initialized"))
                             .ExecuteAsync(fnName, args, ct, userMessage, progress);
 
-                        // Use the tool-call id returned by Ollama so the tool result
-                        // message's tool_call_id matches the assistant's tool_calls id
-                        // (OpenAI/Ollama tool-use spec). Fall back to a generated id
-                        // when the model omits one.
-                        var toolCallId = !string.IsNullOrWhiteSpace(toolCall.Id)
-                            ? toolCall.Id
-                            : $"call_{Guid.NewGuid():N}";
                         // Cap the result fed back into the model context so a
                         // large tool payload (e.g. a full scan JSON) cannot blow
                         // up the prompt over a long agentic conversation. The
@@ -229,9 +246,9 @@ public partial class AIAssistantViewModel
                             ToolCallId = toolCallId,
                         });
 
-                        // Also add to display messages (show as assistant with tool info)
-                        AddMessage(ChatRole.Tool, $"[{fnName}] {TruncateResult(result)}",
-                            new List<ToolCallResponse> { toolCall }, toolCallId);
+                        // The display bubble was created above and streamed live; swap
+                        // the progress text for the final (truncated) tool result.
+                        toolBubble.Content = $"[{fnName}] {TruncateResult(result)}";
                     }
 
                     // Continue loop — model should now synthesize a text response

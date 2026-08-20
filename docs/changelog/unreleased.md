@@ -26,6 +26,12 @@
 - `OllamaClient` request building consolidated into a shared `BuildChatRequest` helper used by both
   the streaming and non-streaming chat paths.
 
+- **Live tool-progress text streaming into the chat bubble** (`AIAssistantViewModel.Chat.cs`) —
+  each tool call now spawns a `Tool`-role chat bubble that fills in with streamed progress text
+  (e.g. `Running run_scan — 45% · 12,345 files…`) as the tool runs, mirroring the final-answer
+  token streaming. The bubble swaps to the truncated tool result when execution finishes. Instant
+  tools show a `Running…` placeholder, then the result.
+
 ### Verified
 - WinUI GUI MSBuild build: 0 errors / 0 warnings.
 - Headless C# tests (`dotnet test`): 15 passed.
