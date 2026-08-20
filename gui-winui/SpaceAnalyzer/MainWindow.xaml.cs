@@ -42,7 +42,7 @@ public sealed partial class MainWindow : Window
 
         FitToCurrentMonitor();
 
-        Title = "Space Analyzer Pro v4.0.0";
+        Title = "Space Analyzer Pro v4.2.0";
         AppLog.Nav($"MainWindow ctor end, Title={Title}");
     }
 

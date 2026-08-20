@@ -81,7 +81,7 @@ dotnet run --project gui-winui/SpaceAnalyzer
 > At runtime you can also point the app at prebuilt binaries via the
 > `SPACE_ANALYZER_SCANNER` / `SPACE_ANALYZER_CLEANER` environment variables.
 
-**WinUI 3 state (v4.0.0):**
+**WinUI 3 state (v4.2.0):**
 - **Stable build** against Windows App SDK 2.4.0 / .NET 10
 - **All 13 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, Installed Apps, System, Cleanup, USN Journal, Settings, About
 - **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
@@ -370,20 +370,13 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
-The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently**. The Rust core has the longer development history (currently `4.1.0`); the WinUI 3 frontend is `4.0.0`. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
+The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently** but released in lockstep — both are currently **`4.2.0`**. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
 
-**v4.1.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
-- `ask` subcommand + 3 non-destructive agentic tools (`classify_file`, `get_bloat_findings`, `get_recommendations`); recommendation engine moved into the core crate.
-- Agent Execution Trace dashboard for agentic-loop observability (OTel-style event stream, token/timing telemetry, human-in-the-loop stop, replay).
-- Macro Dashboard server modularized; Gallery/Reports responsive UX + vision re-triage.
-
-**v4.0.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
-- Token-based WinUI 3 design system (App.xaml resource dictionary).
-- Critical bug fixes: settings-loss cascade in Load(), cancellation token leaks in all async ViewModels, ScannerService no-cancel-before-dispose, MainWindow ViewModel disposal, null-safe converters.
-- Dashboard v2 with 3 canvas resource-history charts and 9 quick-action buttons.
-- Full file explorer in History page with sortable, filterable largest-files list.
-- GUI macro test rewritten to UIA Invoke() pattern (zero cursor movement).
-- AppLog diagnostic logger for navigation/action/error tracing.
+**v4.2.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
+- Reclaimability lens (Safe / Caution / Keep tiers) + persistent reclaim columns; `potential_cleanup_bytes` now returns Safe + Caution.
+- Headless `history` table renderer (`--format text`) with ANSI tier colors, duplicate badges, and a pagination footer.
+- WinUI 3 reclaim UI, "Other" bucket decomposition, scan-crash fix, and hardened logging.
+- Agentic Assistant: `search` streaming progress, `semantic_search` tool, duplicate tool-call guard, token streaming.
 
 **v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 

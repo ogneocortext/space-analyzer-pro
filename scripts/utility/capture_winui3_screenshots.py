@@ -32,7 +32,7 @@ DETERMINISTIC CAPTURE (no flaky UI Automation tab switching):
   fallback library but is no longer used by main().
 
 Legacy UIA findings (retained for reference / fallback use):
-  - Window title includes a version suffix: "Space Analyzer Pro v4.0.0"
+  - Window title includes a version suffix: "Space Analyzer Pro v4.2.0"
   - Window must be found by process PID/HWND, not title (other apps may match).
   - WindowControl must be re-created from HWND each iteration (elements go stale).
 """
