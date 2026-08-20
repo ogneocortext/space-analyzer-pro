@@ -128,7 +128,10 @@ public partial class ToolExecutor
         return false;
     }
 
-    private async Task<string> RunCliAsync(IEnumerable<string> args, CancellationToken ct)
+    private async Task<string> RunCliAsync(
+        IEnumerable<string> args,
+        CancellationToken ct,
+        IProgress<StreamProgress>? progress = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -146,6 +149,13 @@ public partial class ToolExecutor
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
+        // When progress reporting is requested, drain stderr line-by-line so we can
+        // parse `__PROGRESS__` lines live (the same envelope the `scan` subcommand
+        // emits). Otherwise read stderr in one shot for error reporting.
+        var stderrTask = progress is not null
+            ? ReadStderrWithProgressAsync(process.StandardError, progress, ct)
+            : process.StandardError.ReadToEndAsync(ct);
+
         try
         {
             await process.WaitForExitAsync(linkedCts.Token);
@@ -159,7 +169,7 @@ public partial class ToolExecutor
         }
 
         var stdout = await process.StandardOutput.ReadToEndAsync(ct);
-        var stderr = await process.StandardError.ReadToEndAsync(ct);
+        var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
         {
@@ -168,6 +178,43 @@ public partial class ToolExecutor
         }
 
         return stdout;
+    }
+
+    /// <summary>
+    /// Reads stderr line by line, parsing <c>__PROGRESS__</c>-prefixed lines into
+    /// <see cref="StreamProgress"/> and reporting them via <paramref name="progress"/>.
+    /// Mirrors <c>ScannerService.ReadStderrWithProgressAsync</c> so the same live
+    /// progress envelope works for the generic CLI tools (e.g. <c>search</c>) that
+    /// don't have a dedicated streaming method.
+    /// </summary>
+    private static async Task<string> ReadStderrWithProgressAsync(
+        System.IO.StreamReader stderr,
+        IProgress<StreamProgress> progress,
+        CancellationToken ct)
+    {
+        var sb = new System.Text.StringBuilder();
+        while (true)
+        {
+            var line = await stderr.ReadLineAsync(ct);
+            if (line is null)
+                break;
+            sb.AppendLine(line);
+            if (line.StartsWith("__PROGRESS__"))
+            {
+                var json = line["__PROGRESS__".Length..];
+                try
+                {
+                    var sp = System.Text.Json.JsonSerializer.Deserialize<StreamProgress>(json);
+                    if (sp is not null)
+                        progress.Report(sp);
+                }
+                catch
+                {
+                    // Ignore malformed progress lines
+                }
+            }
+        }
+        return sb.ToString();
     }
 
     private static string GetString(Dictionary<string, object> args, string key)

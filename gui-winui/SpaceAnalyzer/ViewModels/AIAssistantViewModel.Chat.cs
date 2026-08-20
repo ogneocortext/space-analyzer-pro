@@ -218,13 +218,15 @@ public partial class AIAssistantViewModel
                                 return;
                             firstProgress = false;
                             throttle.Restart();
-                            var status = p.Percentage > 0
-                                ? $"Running {fnName} — {p.Percentage:0}% · {p.FilesScanned:N0} files…"
+                            // The bubble header already shows the tool name, so the
+                            // progress text drops it to avoid "[run_scan] Running run_scan".
+                            var bare = p.Percentage > 0
+                                ? $"— {p.Percentage:0}% · {p.FilesScanned:N0} files…"
                                 : p.FilesScanned > 0
-                                    ? $"Running {fnName} — {p.FilesScanned:N0} files…"
-                                    : $"Running {fnName}…";
-                            toolBubble.Content = $"[{fnName}] {status}";
-                            ThinkingStatus = status;
+                                    ? $"— {p.FilesScanned:N0} files…"
+                                    : "— …";
+                            toolBubble.Content = $"[{fnName}] Running {bare}";
+                            ThinkingStatus = $"Running {fnName} {bare}";
                         });
 
                         var result = await (_toolExecutor ?? throw new InvalidOperationException("ToolExecutor not initialized"))

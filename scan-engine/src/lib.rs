@@ -308,6 +308,7 @@ mod tests {
                     max_depth: None,
                     limit: 100,
                 },
+                None,
             )
             .unwrap();
         assert_eq!(by_ext.total_matches, 4);
@@ -326,6 +327,7 @@ mod tests {
                     max_depth: None,
                     limit: 100,
                 },
+                None,
             )
             .unwrap();
         assert_eq!(by_kw.total_matches, 1);
@@ -344,6 +346,7 @@ mod tests {
                     max_depth: None,
                     limit: 2,
                 },
+                None,
             )
             .unwrap();
         assert_eq!(limited.matches.len(), 2);
@@ -369,6 +372,7 @@ mod tests {
                     max_depth: None,
                     limit: 100,
                 },
+                None,
             )
             .unwrap();
         assert_eq!(excluded.total_matches, 1);
@@ -385,6 +389,7 @@ mod tests {
                     max_depth: None,
                     limit: 100,
                 },
+                None,
             )
             .unwrap();
         assert_eq!(included.total_matches, 2);

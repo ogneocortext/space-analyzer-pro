@@ -238,6 +238,7 @@ impl FileScanner {
         &self,
         path: &str,
         query: SearchQuery,
+        progress: Option<&dyn Fn(u64)>,
     ) -> anyhow::Result<SearchResult> {
         let mut matches: Vec<FileInfo> = Vec::new();
         let mut files_scanned: u64 = 0;
@@ -302,6 +303,15 @@ impl FileScanner {
             };
 
             files_scanned += 1;
+
+            // Report progress to a host process periodically (every 8192 files so a
+            // large subtree doesn't flood the progress channel). The callback decides
+            // what to do with it (e.g. emit a `__PROGRESS__` line for the GUI).
+            if files_scanned % 8192 == 0 {
+                if let Some(report) = progress {
+                    report(files_scanned);
+                }
+            }
 
             if !query.include_hidden && Self::is_hidden(entry_path, &metadata) {
                 continue;

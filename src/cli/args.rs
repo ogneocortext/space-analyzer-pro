@@ -579,6 +579,12 @@ pub struct SearchArgs {
     /// Maximum number of matches to return (minimum 1)
     #[arg(long, default_value = "100", value_parser = parse_at_least_one)]
     pub limit: usize,
+
+    /// Emit `__PROGRESS__<json>` progress lines on stderr for host processes
+    /// (e.g. the WinUI AI assistant streaming tool progress), instead of running
+    /// the interactive live view.
+    #[arg(long)]
+    pub progress_json: bool,
 }
 
 /// Sub-commands for inspecting NTFS USN change journals.

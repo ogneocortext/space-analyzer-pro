@@ -95,8 +95,13 @@ public partial class ToolExecutor
             cliArgs.AddRange(new[] { "--max-size", $"{sizeMaxMb}M" });
         if (includeHidden)
             cliArgs.Add("--include-hidden");
+        // Ask the scanner to emit live `__PROGRESS__` lines so the agentic tool
+        // bubble can stream "Running search_files — <N> files…" instead of sitting
+        // at "Running…" until the (potentially slow) search returns.
+        if (progress is not null)
+            cliArgs.Add("--progress-json");
 
-        var output = await RunCliAsync(cliArgs, ct);
+        var output = await RunCliAsync(cliArgs, ct, progress);
         if (!string.IsNullOrWhiteSpace(output)
             && !output.TrimStart().StartsWith("Error", StringComparison.OrdinalIgnoreCase)
             && TryParseSearchMatches(output, limit, out var json))

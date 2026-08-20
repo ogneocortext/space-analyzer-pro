@@ -32,8 +32,21 @@
   token streaming. The bubble swaps to the truncated tool result when execution finishes. Instant
   tools show a `Running…` placeholder, then the result.
 
+- **Optimized tool-progress streaming** (follow-up to the live bubble work):
+  - Removed the duplicated tool name from the bubble: `[run_scan] Running run_scan — …`
+    now renders as `[run_scan] Running — …` (the bubble header already shows the
+    tool name). The status bar keeps the full `Running <tool> — …` text.
+  - Extended live progress to the **`search_files`** tool. The Rust `search`
+    subcommand now emits `__PROGRESS__` lines (every 8192 files) when called with
+    the new `--progress-json` flag, and `ToolExecutor.RunCliAsync` parses them via a
+    `ReadStderrWithProgressAsync` helper (mirroring `ScannerService`). So
+    `search_files` bubbles stream `Running search_files — <N> files…` instead of
+    sitting at `Running…` until the (often slow) search returns.
+
 ### Verified
-- WinUI GUI MSBuild build: 0 errors / 0 warnings.
-- Headless C# tests (`dotnet test`): 15 passed.
+- Interactive probe (`SpaceAnalyzer.Tests/StreamingProbeTests.cs`) exercises the REAL
+  `run_scan` streaming path and the REAL `search --progress-json` CLI, confirming both
+  bubble shapes stream live (run_scan ~32 updates @ ~200ms; search ~7 updates). WinUI
+  GUI MSBuild build: 0 errors / 0 warnings. `cargo test --workspace` clean; C# suite 17 passed.
 - `cargo build --bin space-analyzer-cli` + `cargo test --workspace` clean; `search` subcommand
   smoke-tested (finds `.log` files including nested subdirectories).

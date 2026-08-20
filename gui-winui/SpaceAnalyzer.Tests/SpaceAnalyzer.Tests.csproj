@@ -28,6 +28,9 @@
     <Compile Include="..\SpaceAnalyzer\Models\ScanHistoryRecord.cs" Link="Models\ScanHistoryRecord.cs" />
     <Compile Include="..\SpaceAnalyzer\Models\DuplicateAnalysisRecord.cs" Link="Models\DuplicateAnalysisRecord.cs" />
     <Compile Include="..\SpaceAnalyzer\Models\DedupModels.cs" Link="Models\DedupModels.cs" />
+    <Compile Include="..\SpaceAnalyzer\Services\ScannerService.cs" Link="Services\ScannerService.cs" />
+    <Compile Include="..\SpaceAnalyzer\Services\ScannerService.Scanning.cs" Link="Services\ScannerService.Scanning.cs" />
+    <Compile Include="..\SpaceAnalyzer\Services\ScanActivityMonitor.cs" Link="Services\ScanActivityMonitor.cs" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
 use scan_engine::{FileScanner, SearchQuery};
 use space_analyzer_pro_desktop::error::AppResult;
+use std::io::Write;
 
 use crate::cli::args::{OutputFormat, SearchArgs};
 use crate::cli::helpers::{display_path, parse_size, resolve_scan_path, validate_size_window};
@@ -45,7 +46,24 @@ pub fn run(args: SearchArgs, output_format: OutputFormat) -> AppResult<()> {
     };
 
     let scanner = FileScanner::new();
-    let result = scanner.search_files_sync(&display, query)?;
+    // When a host process asked for progress (the WinUI AI assistant streams tool
+    // progress), emit `__PROGRESS__` lines on stderr as files are scanned so the
+    // chat bubble can show "Running search_files — <N> files…" live. The search has
+    // no total, so percentage stays 0 and the UI shows the running file count.
+    let progress_cb: Option<&dyn Fn(u64)> = if args.progress_json {
+        Some(&|n: u64| {
+            let json = serde_json::json!({
+                "type": "progress",
+                "files_scanned": n,
+                "percentage": 0.0,
+            });
+            eprintln!("__PROGRESS__{json}");
+            let _ = std::io::stderr().flush();
+        })
+    } else {
+        None
+    };
+    let result = scanner.search_files_sync(&display, query, progress_cb)?;
 
     if output_format.is_machine_readable() {
         let response = serde_json::json!({
