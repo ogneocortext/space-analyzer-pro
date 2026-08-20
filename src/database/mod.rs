@@ -45,6 +45,11 @@ pub struct ScanHistoryRecord {
     pub max_scan_depth: u32,
     pub potential_cleanup_bytes: u64,
     pub timestamp: String,
+    /// True when the row exists only to anchor a semantic-embedding index
+    /// (created by `embed` with no real scan). Such rows are filtered out of
+    /// the History UI and excluded from per-path prune accounting so they
+    /// neither pollute history nor lose their index to overflow pruning.
+    pub is_index_only: bool,
 }
 
 impl ScanHistoryRecord {
@@ -417,6 +422,43 @@ impl Database {
                 }
             }
         }
+        if user_version < 8 {
+            let table_exists: bool = self
+                .conn
+                .query_row(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='scan_history'",
+                    [],
+                    |_| Ok(true),
+                )
+                .unwrap_or(false);
+
+            if table_exists {
+                self.conn.execute_batch("BEGIN IMMEDIATE")?;
+                let migration_result = (|| -> rusqlite::Result<()> {
+                    let columns: Vec<String> = self.conn.prepare(
+                        "SELECT name FROM pragma_table_info('scan_history') WHERE name IN ('is_index_only')"
+                    )?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+
+                    if !columns.contains(&"is_index_only".to_string()) {
+                        self.conn.execute_batch(
+                            "ALTER TABLE scan_history ADD COLUMN is_index_only INTEGER NOT NULL DEFAULT 0;",
+                        )?;
+                    }
+                    self.conn.execute("PRAGMA user_version = 8", [])?;
+                    Ok(())
+                })();
+                if migration_result.is_err() {
+                    let _ = self.conn.execute_batch("ROLLBACK");
+                    migration_result?;
+                } else {
+                    self.conn.execute_batch("COMMIT")?;
+                }
+            } else {
+                // Fresh database: the CREATE TABLE above already includes the
+                // column, so just advance the schema version.
+                self.conn.execute("PRAGMA user_version = 8", [])?;
+            }
+        }
         Ok(())
     }
 
@@ -445,6 +487,7 @@ impl Database {
                 shallow_scan BOOLEAN NOT NULL DEFAULT 0,
                 max_scan_depth INTEGER NOT NULL DEFAULT 5,
                 potential_cleanup_bytes INTEGER NOT NULL DEFAULT 0,
+                is_index_only INTEGER NOT NULL DEFAULT 0,
                 timestamp TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS duplicate_analysis (

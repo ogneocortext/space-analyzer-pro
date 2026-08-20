@@ -131,7 +131,11 @@ public partial class HistoryViewModel : ViewModelBase, IDisposable
         get => _history;
         set
         {
-            _history = value;
+            // Hide index-only rows (created by `embed` with no real scan) so the
+            // semantic-embedding anchors don't pollute the scan history list.
+            // The agentic assistant still reaches them via the raw
+            // GetScanHistoryPageAsync service call, so reuse is unaffected.
+            _history = (value ?? new List<ScanHistoryRecord>()).Where(r => !r.IsIndexOnly).ToList();
             var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (var r in _history)
             {

@@ -15,9 +15,21 @@ use walkdir::WalkDir;
 
 type EmbeddedFile = (String, u64, String, Vec<f32>);
 
+/// Normalize a path for comparison: unify separators to `/`, drop a trailing
+/// separator, and lowercase so `C:\X`, `C:\X\`, and `C:/x` compare equal.
+fn normalize_path_for_match(p: &str) -> String {
+    p.replace('\\', "/").trim_end_matches('/').to_lowercase()
+}
+
 /// Collect `(path, size, extension)` tuples for a directory, honoring the size
 /// window, the `file_limit` cap, and the hidden-files toggle. Used to feed the
 /// embedding pipeline.
+///
+/// To keep the index representative on large trees, files are walked up to a
+/// bounded collection cap (16× `file_limit`) and then strided-sampled down to
+/// `file_limit`. A naive "take the first N" would only ever cover the
+/// depth-first-first files (often a single subdirectory); striding over a
+/// path-sorted list spreads the sample across the whole tree.
 fn collect_files(
     root: &PathBuf,
     include_hidden: bool,
@@ -25,7 +37,12 @@ fn collect_files(
     max_size: Option<u64>,
     file_limit: usize,
 ) -> Vec<(String, u64, String)> {
-    let mut files = Vec::new();
+    let file_limit = file_limit.max(1);
+    // Bound memory on whole-drive walks: never hold more than this many path
+    // tuples while walking; the sample is drawn from whatever was collected.
+    let collect_cap = file_limit.saturating_mul(16).max(file_limit);
+
+    let mut collected: Vec<(String, u64, String)> = Vec::new();
     for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
         if !entry.file_type().is_file() {
             continue;
@@ -64,12 +81,28 @@ fn collect_files(
             .and_then(|s| s.to_str())
             .map(|s| s.to_lowercase())
             .unwrap_or_default();
-        files.push((path_str, size, ext));
-        if files.len() >= file_limit {
+        collected.push((path_str, size, ext));
+        if collected.len() >= collect_cap {
             break;
         }
     }
-    files
+
+    if collected.len() <= file_limit {
+        return collected;
+    }
+
+    // Deterministic sample spread evenly across the (path-sorted) tree so the
+    // index is representative rather than only covering the depth-first-first
+    // files. Picks exactly `file_limit` entries at proportional positions.
+    collected.sort_by(|a, b| a.0.cmp(&b.0));
+    let step = collected.len() as f64 / file_limit as f64;
+    let mut out = Vec::with_capacity(file_limit);
+    for i in 0..file_limit {
+        let idx = ((i as f64) * step).round() as usize;
+        let idx = idx.min(collected.len() - 1);
+        out.push(collected[idx].clone());
+    }
+    out
 }
 
 /// Run the `embed` subcommand: scan a directory, embed every file via Ollama,
@@ -81,6 +114,7 @@ pub fn run_embed(
     max_size: Option<String>,
     include_hidden: bool,
     _no_gpu: bool,
+    if_not_indexed: bool,
     format: OutputFormat,
 ) -> AppResult<()> {
     let raw_path = path.unwrap_or_else(|| ".".to_string());
@@ -129,12 +163,94 @@ pub fn run_embed(
         )));
     }
 
+    // Issue #3: an explicitly-supplied scan id must actually belong to this
+    // path. Otherwise we could attach folder A's vectors to a scan record that
+    // represents folder B.
+    if let Some(requested_id) = scan_id {
+        match db.get_scan_by_id(requested_id) {
+            Ok(Some(rec)) => {
+                if normalize_path_for_match(&rec.path)
+                    != normalize_path_for_match(&display)
+                {
+                    return Err(AppError::Validation(format!(
+                        "Scan #{requested_id} indexes `{}`, which does not match the requested embed path `{}`",
+                        rec.path, display
+                    )));
+                }
+            }
+            Ok(None) => {
+                return Err(AppError::Validation(format!(
+                    "No scan record found with id {requested_id}"
+                )))
+            }
+            Err(e) => {
+                return Err(AppError::Validation(format!(
+                    "Failed to read scan #{requested_id}: {e}"
+                )))
+            }
+        }
+    }
+
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| AppError::Validation(format!("Failed to start async runtime: {e}")))?;
     let client = OllamaClient::new(&settings.ollama_url, &settings.embedding_model)
         .map_err(|e| AppError::Validation(format!("Ollama client error: {e}")))?
         .with_model(&settings.embedding_model)
         .map_err(|e| AppError::Validation(format!("Ollama client error: {e}")))?;
+
+    // Resolve the scan id, creating an index-only placeholder record when none
+    // is supplied. The placeholder is tagged so the History UI hides it and
+    // overflow pruning leaves it alone.
+    let scan_id = match scan_id {
+        Some(id) => id,
+        None => {
+            let mut result = ScanReport::new();
+            result.path = display.clone();
+            result.total_files = files.len();
+            result.total_size_bytes = files.iter().map(|(_, s, _)| *s).sum();
+            result.is_index_only = true;
+            db.save_scan(&result, false, false, 5)
+                .map_err(|e| AppError::Validation(format!("Failed to create scan record: {e}")))?
+        }
+    };
+
+    // Issue #1: reuse a fresh existing index instead of rebuilding it. A rebuild
+    // re-runs the whole Ollama job and clobbers any index already built for this
+    // scan (e.g. by the GUI). Only reuse when the stored model matches the
+    // current one, otherwise the index is stale and must be rebuilt.
+    if if_not_indexed {
+        if let Some(stored_model) = db
+            .get_embedding_model(scan_id)
+            .map_err(|e| AppError::Validation(format!("Failed to read embedding model: {e}")))?
+        {
+            if stored_model == settings.embedding_model {
+                let existing = db
+                    .count_embeddings_for_scan(scan_id)
+                    .map_err(|e| AppError::Validation(format!("Failed to count embeddings: {e}")))?;
+                if existing > 0 {
+                    if format == OutputFormat::Json {
+                        let response = serde_json::json!({
+                            "scan_id": scan_id,
+                            "embedded": existing,
+                            "model": settings.embedding_model,
+                            "path": display,
+                            "reused": true,
+                        });
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&response).unwrap_or_default()
+                        );
+                    } else {
+                        println!(
+                            "Reused existing index of {existing} file(s) for scan #{scan_id} ({display}) using {}",
+                            settings.embedding_model
+                        );
+                    }
+                    return Ok(());
+                }
+            }
+        }
+    }
 
     eprintln!(
         "[EMBED] Generating embeddings for {} file(s) via {} (batch size {})",
@@ -146,23 +262,21 @@ pub fn run_embed(
         .block_on(embed_files(&client, &files, settings.embedding_batch_size))
         .map_err(AppError::Validation)?;
 
-    let scan_id = match scan_id {
-        Some(id) => id,
-        None => {
-            let mut result = ScanReport::new();
-            result.path = display.clone();
-            result.total_files = files.len();
-            result.total_size_bytes = files.iter().map(|(_, s, _)| *s).sum();
-            db.save_scan(&result, false, false, 5)
-                .map_err(|e| AppError::Validation(format!("Failed to create scan record: {e}")))?
-        }
-    };
-
+    let n_files = files.len();
     let records: Vec<EmbeddedFile> = files
         .into_iter()
         .zip(embeddings)
         .map(|((p, s, e), v)| (p, s, e, v))
         .collect();
+
+    // Issue #5: `embed_files` already guarantees a 1:1 vector count, but guard
+    // explicitly so a desync fails loudly instead of silently dropping entries.
+    if records.len() != n_files {
+        return Err(AppError::Validation(format!(
+            "Embedding mismatch: collected {n_files} files but produced {} vectors",
+            records.len()
+        )));
+    }
 
     let count = db
         .save_embeddings(scan_id, &settings.embedding_model, &records)
@@ -174,6 +288,7 @@ pub fn run_embed(
             "embedded": count,
             "model": settings.embedding_model,
             "path": display,
+            "reused": false,
         });
         println!(
             "{}",

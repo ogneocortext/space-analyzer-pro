@@ -138,6 +138,7 @@ public partial class ScannerService
         string? minSize = null,
         string? maxSize = null,
         bool includeHidden = false,
+        bool ifNotIndexed = false,
         CancellationToken ct = default)
     {
         if (!IsAvailable)
@@ -148,6 +149,10 @@ public partial class ScannerService
         if (!string.IsNullOrWhiteSpace(minSize)) { argList.Add("--min-size"); argList.Add(minSize); }
         if (!string.IsNullOrWhiteSpace(maxSize)) { argList.Add("--max-size"); argList.Add(maxSize); }
         if (includeHidden) argList.Add("--include-hidden");
+        // Skip the (expensive) Ollama embedding pass when the scan already has a
+        // fresh index for the current model. Used by the AI assistant so repeat
+        // queries in a session (and across sessions) reuse the existing index.
+        if (ifNotIndexed) argList.Add("--if-not-indexed");
 
         var output = await RunScannerAsync(argList, ct);
         if (string.IsNullOrWhiteSpace(output))

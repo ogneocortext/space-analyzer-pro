@@ -30,6 +30,13 @@ public class ScanHistoryRecord
     public ulong PotentialCleanupBytes { get; set; }
     public string Timestamp { get; set; } = string.Empty;
 
+    /// <summary>
+    /// True when this row exists only to anchor a semantic-embedding index
+    /// (created by the <c>embed</c> CLI with no real scan). Such rows are
+    /// hidden from the History UI so they don't pollute the scan list.
+    /// </summary>
+    public bool IsIndexOnly { get; set; }
+
     private Dictionary<string, long>? _fileTypes;
     public Dictionary<string, long> FileTypes => _fileTypes ??= JsonSerializer.Deserialize<Dictionary<string, long>>(FileTypesJson, ScannerJsonOptions) ?? new();
 

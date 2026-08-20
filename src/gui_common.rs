@@ -53,6 +53,11 @@ pub struct ScanReport {
     pub potential_cleanup_bytes: u64,
     #[serde(default)]
     pub timestamp: String,
+    /// True when this report was synthesized solely to anchor a semantic
+    /// embedding index (no real filesystem scan was performed). Persisted on
+    /// the scan-history row so the History UI can hide it.
+    #[serde(default)]
+    pub is_index_only: bool,
 }
 
 /// Directory entry used in scan results
@@ -90,6 +95,7 @@ impl ScanReport {
             category_sizes: HashMap::new(),
             potential_cleanup_bytes: 0,
             timestamp: String::new(),
+            is_index_only: false,
         }
     }
 

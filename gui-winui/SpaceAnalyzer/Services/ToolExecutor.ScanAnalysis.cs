@@ -194,10 +194,15 @@ public partial class ToolExecutor
             return "Error: 'query' parameter is required for semantic search.";
 
         var top = Math.Max(1, GetInt(args, "top", 20));
+        // Optional similarity floor (0..1). Drops weak "central document" hits
+        // that score mid-pack on every query. A 0/unspecified floor means "no
+        // threshold", matching the Rust default.
+        var minScore = GetDouble(args, "min_score", 0.0);
 
         // Resolve (or lazily build) a semantic index for this path. The first
         // query for a folder auto-embeds it; later queries reuse the cached
-        // index, so the one-time Ollama cost is paid at most once per session.
+        // index (and `--if-not-indexed` lets the Rust side reuse a previously
+        // built index too), so the one-time Ollama cost is paid at most once.
         long scanId;
         var normalized = NormalizePath(path);
         if (!_semanticIndexByPath.TryGetValue(normalized, out scanId))
@@ -205,14 +210,14 @@ public partial class ToolExecutor
             // Attach the vectors to an existing scan record for this path when
             // one exists, so we don't spawn a fresh history entry on every index.
             var cached = await FindCachedScanAsync(path, ct);
-            var embedResult = await _scanner.EmbedDirectoryAsync(path, cached?.Id, ct: ct);
+            var embedResult = await _scanner.EmbedDirectoryAsync(path, cached?.Id, ifNotIndexed: true, ct: ct);
             if (embedResult == null || embedResult.ScanId <= 0)
                 return "Semantic search needs local embeddings (Ollama running with an embedding model such as nomic-embed-text). Start Ollama and try again.";
             scanId = embedResult.ScanId;
             _semanticIndexByPath[normalized] = scanId;
         }
 
-        var matches = await _scanner.SemanticSearchAsync(query, scanId, top, null, ct);
+        var matches = await _scanner.SemanticSearchAsync(query, scanId, top, minScore > 0 ? minScore : null, ct);
         if (matches == null)
             return "Semantic search returned no results (the index may be empty or Ollama is unavailable).";
         if (matches.Count == 0)

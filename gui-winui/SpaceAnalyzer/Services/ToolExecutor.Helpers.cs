@@ -279,6 +279,22 @@ public partial class ToolExecutor
         return int.TryParse(v.ToString(), out var parsed) ? parsed : defaultValue;
     }
 
+    private static double GetDouble(Dictionary<string, object> args, string key, double defaultValue)
+    {
+        if (!args.TryGetValue(key, out var v))
+            return defaultValue;
+        if (v is JsonElement je)
+        {
+            if (je.ValueKind == JsonValueKind.Number)
+                return je.TryGetDouble(out var dbl) ? dbl : defaultValue;
+            return double.TryParse(je.GetRawText(), out var dr) ? dr : defaultValue;
+        }
+        if (v is double dval) return dval;
+        if (v is int i) return i;
+        if (v is long l) return l;
+        return double.TryParse(v?.ToString(), out var parsed) ? parsed : defaultValue;
+    }
+
     private static bool GetBool(Dictionary<string, object> args, string key)
     {
         if (!args.TryGetValue(key, out var v))

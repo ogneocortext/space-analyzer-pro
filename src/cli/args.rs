@@ -449,6 +449,13 @@ pub enum Commands {
         /// Disable GPU-accelerated batch embedding (force CPU)
         #[arg(long)]
         no_gpu: bool,
+
+        /// Skip embedding when the target scan already has a fresh index for the
+        /// current embedding model. Reuses the existing index instead of paying
+        /// the Ollama cost to rebuild it (used by the AI assistant, which indexes
+        /// on first query and wants to reuse that index on later queries).
+        #[arg(long)]
+        if_not_indexed: bool,
     },
 
     /// Natural-language file search over a previously embedded scan

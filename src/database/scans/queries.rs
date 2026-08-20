@@ -34,15 +34,15 @@ impl Database {
 
         let timestamp = chrono::Utc::now().to_rfc3339();
         self.conn.execute(
-            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, is_index_only, timestamp)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 result.path, result.total_files as i64, result.total_size_bytes as i64,
                 result.total_size_mb, result.duration_secs,
                 file_types_json, extension_sizes_json, top_directories_json, largest_files_json,
                 category_sizes_json,
                 deep_scan, shallow_scan, max_scan_depth as i64,
-                potential_cleanup as i64, timestamp,
+                potential_cleanup as i64, result.is_index_only as i64, timestamp,
             ],
         )?;
         let id = self.conn.last_insert_rowid();
@@ -54,10 +54,13 @@ impl Database {
     /// [`MAX_SCANS_PER_PATH`] records. Old records are deleted along with any
     /// orphaned duplicate-analysis/embedding rows that referenced them.
     fn prune_path_overflow(&self, path: &str) -> rusqlite::Result<()> {
+        // Index-only rows (created by `embed` with no real scan) are excluded
+        // from the per-path slot count so they neither displace real scans nor
+        // get pruned away (which would silently drop their embedding index).
         self.conn.execute(
             "DELETE FROM scan_history
-             WHERE path = ?1 AND id NOT IN (
-                 SELECT id FROM scan_history WHERE path = ?1 ORDER BY id DESC LIMIT ?2
+             WHERE path = ?1 AND (is_index_only = 0 OR is_index_only IS NULL) AND id NOT IN (
+                 SELECT id FROM scan_history WHERE path = ?1 AND (is_index_only = 0 OR is_index_only IS NULL) ORDER BY id DESC LIMIT ?2
              )",
             params![path, MAX_SCANS_PER_PATH as i64],
         )?;
@@ -101,10 +104,13 @@ impl Database {
     /// scans (e.g. of a temporary or non-existent directory) that carry no useful
     /// metrics. Also removes orphaned duplicate-analysis/embedding rows for the
     /// deleted scans. Returns the number of scan-history records deleted.
+    /// Index-only rows (from `embed` with no real scan) are never pruned here,
+    /// since an empty file count is expected for them and their embedding index
+    /// must survive.
     pub fn prune_empty_scans(&self) -> rusqlite::Result<usize> {
         let removed = self
             .conn
-            .execute("DELETE FROM scan_history WHERE total_files = 0", [])?;
+            .execute("DELETE FROM scan_history WHERE total_files = 0 AND (is_index_only = 0 OR is_index_only IS NULL)", [])?;
         self.cleanup_orphaned_scan_data()?;
         Ok(removed)
     }
@@ -143,7 +149,7 @@ impl Database {
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only
              FROM scan_history ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
@@ -164,6 +170,7 @@ impl Database {
                 max_scan_depth: row.get::<_, i64>(13)? as u32,
                 potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                 timestamp: row.get(15)?,
+                is_index_only: row.get::<_, i64>(16)? != 0,
             })
         })?;
         rows.collect()
@@ -195,7 +202,7 @@ impl Database {
 
         let columns = "id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
-                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp";
+                     category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only";
 
         let dup_clause =
             "path IN (SELECT path FROM scan_history GROUP BY path HAVING COUNT(*) > 1)";
@@ -273,6 +280,7 @@ impl Database {
                     max_scan_depth: row.get::<_, i64>(13)? as u32,
                     potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                     timestamp: row.get(15)?,
+                    is_index_only: row.get::<_, i64>(16)? != 0,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -356,7 +364,7 @@ impl Database {
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp
+            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only
              FROM scan_history WHERE id = ?1",
         )?;
         let row = stmt.query_row(params![id], |row| {
@@ -377,6 +385,7 @@ impl Database {
                 max_scan_depth: row.get::<_, i64>(13)? as u32,
                 potential_cleanup_bytes: row.get::<_, i64>(14)? as u64,
                 timestamp: row.get(15)?,
+                is_index_only: row.get::<_, i64>(16)? != 0,
             })
         });
         match row {

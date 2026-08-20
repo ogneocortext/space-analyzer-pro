@@ -78,6 +78,17 @@ impl super::Database {
             .optional()
     }
 
+    /// Count embeddings stored for a scan without loading the (potentially
+    /// large) vectors. Used to decide whether an existing index can be reused.
+    pub fn count_embeddings_for_scan(&self, scan_id: i64) -> rusqlite::Result<usize> {
+        let count: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM file_embeddings WHERE scan_id = ?1",
+            params![scan_id],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
     /// Delete embeddings for a scan
     pub fn delete_scan_embeddings(&self, scan_id: i64) -> rusqlite::Result<usize> {
         self.conn.execute(

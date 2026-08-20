@@ -192,6 +192,7 @@ pub fn main() -> AppResult<()> {
             max_size,
             include_hidden,
             no_gpu,
+            if_not_indexed,
         } => semantic::run_embed(
             path,
             scan_id,
@@ -199,6 +200,7 @@ pub fn main() -> AppResult<()> {
             max_size,
             include_hidden,
             no_gpu,
+            if_not_indexed,
             output_format,
         ),
         Commands::SemanticSearch {
