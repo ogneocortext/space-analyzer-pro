@@ -73,6 +73,7 @@ public partial class ToolExecutor : IDisposable
                 "get_file_type_breakdown" => await GetFileTypeBreakdownAsync(ct),
                 "analyze_file_patterns" => await AnalyzeFilePatternsAsync(ct),
                 "search_files" => await SearchFilesAsync(arguments, ct, progress),
+                "semantic_search" => await SemanticSearchFilesAsync(arguments, ct, progress),
                 "get_largest_files" => await GetLargestFilesAsync(arguments, ct, progress),
                  "run_scan" => await RunScanAsync(arguments, ct, progress),
                  "run_workflow" => await RunWorkflowAsync(arguments, ct),

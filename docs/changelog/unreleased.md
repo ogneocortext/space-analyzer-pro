@@ -11,6 +11,15 @@
   `include_hidden` to the Rust `search` CLI (`ToolExecutor.ScanAnalysis.cs`,
   `AIAssistantViewModel.Tools.cs`). New `ToolExecutor.Helpers.GetBool` unwraps
   `JsonElement` / `bool` / `int` / `long` / string argument values.
+- **`semantic_search` agentic tool** — connects the AI Assistant to the existing
+  embeddings backend. The agentic loop previously had *only* lexical search
+  (`search_files`); it is now also able to answer natural-language queries
+  ("large video files from last year", "my tax documents from 2023") via the
+  Rust `embed` + `semantic-search` subcommands. The first query for a folder
+  auto-builds a semantic index on demand (one-time, via `ScannerService.EmbedDirectoryAsync`),
+  then reuses it for later queries in the session (`ToolExecutor._semanticIndexByPath`).
+  Tool def in `AIAssistantViewModel.Tools.cs`; handler `SemanticSearchFilesAsync`
+  in `ToolExecutor.ScanAnalysis.cs`; dispatch added to `ToolExecutor.ExecuteAsync`.
 - **Duplicate tool-call guard** (`AIAssistantViewModel.Chat.cs`) — a per-turn
   `HashSet<(toolName|serializedArgs)>` detects an identical repeated tool call and appends a
   `[System note: …]` nudge to the model-facing result (not the on-screen message) so the
@@ -50,3 +59,7 @@
   GUI MSBuild build: 0 errors / 0 warnings. `cargo test --workspace` clean; C# suite 17 passed.
 - `cargo build --bin space-analyzer-cli` + `cargo test --workspace` clean; `search` subcommand
   smoke-tested (finds `.log` files including nested subdirectories).
+- WinUI GUI MSBuild build: 0 errors / 0 warnings after adding the `semantic_search`
+  tool and handler (no Rust changes required — the `embed` / `semantic-search`
+  subcommands and their C# wrappers already existed and were simply not exposed
+  to the agentic loop).

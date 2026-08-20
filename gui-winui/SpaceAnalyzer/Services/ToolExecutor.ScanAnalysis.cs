@@ -172,6 +172,63 @@ public partial class ToolExecutor
         }
     }
 
+    /// <summary>
+    /// Maps a normalized path to the scan id that already carries a semantic
+    /// index, so repeated queries in the same assistant session reuse the
+    /// embeddings instead of re-running Ollama every time. The index is lazily
+    /// built by <see cref="SemanticSearchFilesAsync"/> on first use.
+    /// </summary>
+    private readonly Dictionary<string, long> _semanticIndexByPath = new();
+
+    private async Task<string> SemanticSearchFilesAsync(
+        Dictionary<string, object> args,
+        CancellationToken ct,
+        IProgress<StreamProgress>? progress = null)
+    {
+        var path = await ResolveScanPathAsync(args, ct);
+        if (string.IsNullOrWhiteSpace(path))
+            return "No scan results available. Run a scan first or provide a 'path'.";
+
+        var query = GetString(args, "query");
+        if (string.IsNullOrWhiteSpace(query))
+            return "Error: 'query' parameter is required for semantic search.";
+
+        var top = Math.Max(1, GetInt(args, "top", 20));
+
+        // Resolve (or lazily build) a semantic index for this path. The first
+        // query for a folder auto-embeds it; later queries reuse the cached
+        // index, so the one-time Ollama cost is paid at most once per session.
+        long scanId;
+        var normalized = NormalizePath(path);
+        if (!_semanticIndexByPath.TryGetValue(normalized, out scanId))
+        {
+            // Attach the vectors to an existing scan record for this path when
+            // one exists, so we don't spawn a fresh history entry on every index.
+            var cached = await FindCachedScanAsync(path, ct);
+            var embedResult = await _scanner.EmbedDirectoryAsync(path, cached?.Id, ct: ct);
+            if (embedResult == null || embedResult.ScanId <= 0)
+                return "Semantic search needs local embeddings (Ollama running with an embedding model such as nomic-embed-text). Start Ollama and try again.";
+            scanId = embedResult.ScanId;
+            _semanticIndexByPath[normalized] = scanId;
+        }
+
+        var matches = await _scanner.SemanticSearchAsync(query, scanId, top, null, ct);
+        if (matches == null)
+            return "Semantic search returned no results (the index may be empty or Ollama is unavailable).";
+        if (matches.Count == 0)
+            return "No files matched the semantic query. Try rephrasing it, or index a folder that contains more relevant files.";
+
+        var items = matches.Take(top).Select(m => new
+        {
+            path = m.FilePath,
+            size_mb = Math.Round(m.FileSize / (1024.0 * 1024), 2),
+            extension = m.FileExtension,
+            similarity_pct = Math.Round(m.Similarity * 100.0, 1),
+        }).ToList();
+
+        return JsonSerializer.Serialize(items, s_json);
+    }
+
     private async Task<string> GetLargestFilesAsync(
         Dictionary<string, object> args,
         CancellationToken ct,
