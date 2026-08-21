@@ -47,8 +47,19 @@ main{max-width:1200px;margin:0 auto;padding:24px}
 .map-wrap{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:24px;overflow:auto}
 .mermaid{text-align:center}
 #fallback{background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:16px;overflow:auto;font-family:'SF Mono',Consolas,monospace;font-size:12px;color:var(--tm);white-space:pre}
-.note{color:var(--tm);font-size:12px;margin:0 0 14px}
-a{color:var(--bl)}
+ .note{color:var(--tm);font-size:12px;margin:0 0 14px}
+ .proj-list{display:flex;flex-direction:column;gap:10px;margin-bottom:22px}
+ .proj{display:flex;flex-direction:column;gap:8px;padding:13px 16px;background:var(--s);border:1px solid var(--b);border-radius:10px;cursor:pointer;transition:border-color .15s}
+ .proj:hover{border-color:var(--bl)}
+ .proj.active{border-color:var(--g)}
+ .proj-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+ .proj-name{font-weight:600;font-size:14px;color:var(--tb)}
+ .proj-path{font-family:'SF Mono',Consolas,monospace;font-size:11px;color:var(--tm)}
+ .proj-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+ .proj-count{font-size:12px;color:var(--tm)}
+ .proj-count b.o{color:var(--o)} .proj-count b.g{color:var(--g)}
+ .proj-git{font-size:11px;color:var(--bl)}
+ a{color:var(--bl)}
 </style>
 </head>
 <body>
@@ -67,6 +78,7 @@ a{color:var(--bl)}
       <span id="scanStatus" class="ts"></span>
     </div>
     <div id="summary" class="ts" style="margin-bottom:12px"></div>
+    <div id="projList" class="proj-list"></div>
     <div id="pkgList" class="list"></div>
   </section>
   <section id="map" class="panel">
@@ -159,7 +171,10 @@ a{color:var(--bl)}
   var scanBtn = document.getElementById('scanBtn');
   var scanStatus = document.getElementById('scanStatus');
   var pkgList = document.getElementById('pkgList');
+  var projList = document.getElementById('projList');
   var summaryEl = document.getElementById('summary');
+  var allPkgs = [];
+  var filterPath = null;
 
   function badge(method){
     var m = (method || '').toLowerCase();
@@ -172,12 +187,38 @@ a{color:var(--bl)}
     summaryEl.innerHTML = '<b style="color:var(--o)">'+s.outdated+'</b> outdated · <b style="color:var(--g)">'+s.current+'</b> up to date · '+s.total+' checked · '+s.projects+' projects';
   }
 
+  function renderProjects(projects){
+    if (!projects || !projects.length){ projList.innerHTML = ''; return; }
+    var head = '<div class="filterbar">'+projects.length+' projects · click a project to filter the list below</div>';
+    projList.innerHTML = head + projects.map(function(p){
+      var srcs = (p.sources||[]).map(function(s){ return badge(s); }).join(' ');
+      var git = p.isGit ? '<span class="proj-git">⎇ '+(p.branch?esc(p.branch):'git')+'</span>' : '';
+      return '<div class="proj" data-path="'+esc(p.path)+'">'
+        + '<div class="proj-top"><span class="proj-name">'+esc(p.name)+'</span>'
+        + '<span class="proj-path">'+esc(p.path)+'</span></div>'
+        + '<div class="proj-meta">'+srcs
+        + '<span class="proj-count">'+p.total+' deps · <b class="o">'+p.outdated+' outdated</b> · <b class="g">'+p.current+' current</b></span>'
+        + git + '</div></div>';
+    }).join('');
+    projList.querySelectorAll('.proj').forEach(function(c){
+      c.addEventListener('click', function(){
+        var path = c.dataset.path;
+        filterPath = (filterPath === path) ? null : path;
+        projList.querySelectorAll('.proj').forEach(function(x){ x.classList.toggle('active', x.dataset.path === filterPath); });
+        renderPackages();
+      });
+    });
+  }
+
   function renderPackages(pkgs){
+    pkgs = pkgs || allPkgs;
+    if (filterPath) pkgs = pkgs.filter(function(p){ return p.Path === filterPath; });
     if (!pkgs || !pkgs.length){
-      pkgList.innerHTML = '<div class="empty">No outdated packages reported. Click <b>Run scan</b> to check (or the generator has not found updates).</div>';
+      pkgList.innerHTML = '<div class="empty">No packages to show'+(filterPath?' for this project':'')+'.</div>';
       return;
     }
-    pkgList.innerHTML = pkgs.map(function(p){
+    var head = filterPath ? '<div class="filterbar">Filtered to one project · <a href="#" id="clearFilter">Show all projects</a></div>' : '';
+    pkgList.innerHTML = head + pkgs.map(function(p){
       var cmd = p.Cmd || '';
       return '<div class="pkg">'
         + '<span class="pname">'+esc(p.Name||'?')+'</span>'
@@ -189,6 +230,10 @@ a{color:var(--bl)}
         + '<button class="act run" data-update="'+esc(cmd)+'" data-name="'+esc(p.Name||'')+'">Update</button>'
         + '</div>';
     }).join('');
+    if (filterPath){
+      var cf = document.getElementById('clearFilter');
+      if (cf){ cf.addEventListener('click', function(e){ e.preventDefault(); filterPath = null; projList.querySelectorAll('.proj').forEach(function(x){ x.classList.remove('active'); }); renderPackages(); }); }
+    }
     pkgList.querySelectorAll('[data-copy]').forEach(function(b){
       b.addEventListener('click', function(){
         navigator.clipboard.writeText(b.dataset.copy).then(function(){ b.textContent='Copied'; setTimeout(function(){ b.textContent='Copy'; }, 1200); });
@@ -210,7 +255,10 @@ a{color:var(--bl)}
   function applyData(d){
     scanStatus.textContent = 'Last scan: ' + (d.timestamp || 'never');
     renderSummary(d.summary);
-    renderPackages(d.packages);
+    allPkgs = d.packages || [];
+    filterPath = null;
+    renderProjects(d.projects);
+    renderPackages();
   }
 
   function loadUpdates(){

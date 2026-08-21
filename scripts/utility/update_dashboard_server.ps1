@@ -205,21 +205,21 @@ try {
                 if (Test-Path $dataPath) {
                     try {
                         $obj = (Get-Content $dataPath -Raw -Encoding UTF8) | ConvertFrom-Json -AsHashtable
-                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary }
+                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary; projects = $obj.projects }
                     } catch {
-                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null; projects = @() }
                     }
                 } else {
-                    Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                    Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null; projects = @() }
                 }
             }
             '^/api/updates$' {
                 if (Test-Path $dataPath) {
                     try {
                         $obj = (Get-Content $dataPath -Raw -Encoding UTF8) | ConvertFrom-Json -AsHashtable
-                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary }
+                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary; projects = $obj.projects }
                     } catch {
-                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null; projects = @() }
                     }
                 } else {
                     Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }

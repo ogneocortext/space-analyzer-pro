@@ -426,7 +426,7 @@ function Show-Dashboard {
         foreach ($r in $PortableResults) {
             $portableData += @{
                 Name = $r.Name; Installed = $r.Installed; Available = $r.Available
-                Status = $r.Status; Method = 'portable'; Project = 'Portable Apps'
+                Status = $r.Status; Method = 'portable'; Project = 'Portable Apps'; Path = $null
                 Compat = (Get-CompatLevel -Installed $r.Installed -Available $r.Available)
                 Cmd = (Get-UpdateCommand -Method 'winget' -Name $r.WingetId -Available $r.Available)
             }
@@ -437,7 +437,7 @@ function Show-Dashboard {
         foreach ($r in $WingetResults) {
             $wingetData += @{
                 Name = $r.Name; Installed = $r.Installed; Available = $r.Available
-                Status = 'outdated'; Method = 'winget'; Project = 'System Packages'
+                Status = 'outdated'; Method = 'winget'; Project = 'System Packages'; Path = $null
                 Compat = (Get-CompatLevel -Installed $r.Installed -Available $r.Available)
                 Cmd = (Get-UpdateCommand -Method 'winget' -Name $r.Name -Available $r.Available)
             }
@@ -448,7 +448,7 @@ function Show-Dashboard {
         foreach ($r in $DepResults) {
             $depData += @{
                 Name = $r.Name; Installed = $r.Installed; Available = $r.Available
-                Status = $r.Status; Method = $r.Method; Project = $r.Project
+                Status = $r.Status; Method = $r.Method; Project = $r.Project; Path = $r.Path
                 Compat = (Get-CompatLevel -Installed $r.Installed -Available $r.Available)
                 Cmd = (Get-UpdateCommand -Method $r.Method -Name $r.Name -ProjectPath $r.Path -Available $r.Available)
             }
@@ -888,9 +888,34 @@ checkServer();render();
     # source of truth for the UI. We always write structured JSON here; the HTML artifact
     # is opt-in via -ExportHtml for static snapshots, so the dashboard is viewable without
     # depending on a generated file.
-    $segmentDir = Join-Path $PSScriptRoot 'dashboard'
+    $segmentDir = Join-Path $PSScriptRoot 'update_dashboard'
     if (-not (Test-Path $segmentDir)) { New-Item -ItemType Directory -Path $segmentDir -Force | Out-Null }
     $dataPath = Join-Path $segmentDir 'update_data.json'
+
+    # Per-project metadata: code projects are grouped by their on-disk directory
+    # (system/portable entries have no Path and are excluded from this view).
+    $projGroups = $allData | Where-Object { $_.Path } | Group-Object -Property Path
+    $projects = @()
+    foreach ($g in $projGroups) {
+        $grp = $g.Group
+        $methods = @($grp | ForEach-Object { $_.Method } | Sort-Object -Unique)
+        $isGit = Test-Path -LiteralPath (Join-Path $g.Name '.git')
+        $branch = $null
+        if ($isGit) {
+            try { $branch = [string](& git -C $g.Name rev-parse --abbrev-ref HEAD 2>$null) } catch { $branch = $null }
+        }
+        $projects += @{
+            path     = $g.Name
+            name     = Split-Path $g.Name -Leaf
+            sources  = $methods
+            total    = $grp.Count
+            outdated = ($grp | Where-Object { $_.Status -eq 'outdated' }).Count
+            current  = ($grp | Where-Object { $_.Status -eq 'current' }).Count
+            unknown  = ($grp | Where-Object { $_.Status -notin @('outdated', 'current') }).Count
+            isGit    = $isGit
+            branch   = if ($branch) { $branch.Trim() } else { $null }
+        }
+    }
 
     $data = @{
         timestamp = $timestamp
@@ -900,6 +925,7 @@ checkServer();render();
             current  = ($allData | Where-Object { $_.Status -eq 'current' }).Count
             projects = ($allData | ForEach-Object { $_.Project } | Sort-Object -Unique).Count
         }
+        projects = $projects
         packages = $allData
     }
     $data | ConvertTo-Json -Depth 6 | Out-File -FilePath $dataPath -Encoding UTF8 -Force
