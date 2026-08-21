@@ -287,7 +287,7 @@ check-updates-fast:
 update-dashboard:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipPortable -SkipWinget -Dashboard
 
-# Start dashboard server (http://localhost:3847) for live updates
+# Start update dashboard server (http://localhost:3847) for live updates
 update-dashboard-server:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/update_dashboard_server.ps1
 

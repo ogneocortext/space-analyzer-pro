@@ -29,7 +29,7 @@
 ## Active documentation (read these for current status)
 
 - `DATA_FLOW.md` — **agent-oriented map**: the five subsystems, how data flows between
-  them (Rust CLI ↔ C# models, dashboard server, vision pipeline), and a "I need X →
+  them (Rust CLI ↔ C# models, Macro/Live UX Dashboard server, vision pipeline), and a "I need X →
   go to `<path>`" file locator. Start here when you need to find a file or understand
   an integration boundary.
 - `CHANGELOG.md` — version history; `[Unreleased]` holds the latest fixes (e.g. Settings

@@ -109,8 +109,8 @@ docs/archive/             ← historical/analysis docs are gitignored and kept o
 | Edit a C# data model | `gui-winui/SpaceAnalyzer/Models/*.cs` (match Rust snake_case wire shape) |
 | Change WinUI app build/packaging | `gui-winui/SpaceAnalyzer/SpaceAnalyzer.csproj` (`CopyRustTools`, `BuildRustScanner` targets) |
 | Run the update dashboard | `pwsh scripts/utility/update_dashboard_server.ps1` → `http://localhost:3847` |
-| Change dashboard server logic | `scripts/utility/live_progress_server.py`, `ux_server_{render,lib,core,agent}.py` |
-| Change dashboard styling | `scripts/utility/theme.css`, `nav.css`, `dashboard.css` (+ `live_progress.html`) |
+| Change Macro/Live UX Dashboard server logic | `scripts/utility/live_progress_server.py`, `ux_server_{render,lib,core,agent}.py` |
+| Change Macro/Live UX Dashboard styling | `scripts/utility/theme.css`, `nav.css`, `dashboard.css` (+ `live_progress.html`) |
 | Run a UX/vision analysis | `pwsh scripts/utility/capture.ps1` / `analyze_ux_screenshots.py` / `scripts/vision.mjs` |
 | Read current open issues | `docs/issues.json` (not the HTML/MD — those are derived) |
 | Find where a feature is documented | `docs/INDEX.md` → then the named doc |
