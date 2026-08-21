@@ -77,6 +77,17 @@ pub struct ScanHistoryRecord {
     /// 18 GB is reclaimable deps".
     #[serde(default)]
     pub category_reclaimable_json: String,
+    /// Size of the immediately-previous scan of the same `path` (chronologically
+    /// prior in history), or `None` when this is the first scan of that folder.
+    /// Computed server-side via `LAG(...) OVER (PARTITION BY path ORDER BY
+    /// timestamp)` so the UI can show "changed since last scan" without
+    /// re-querying, and the value is accurate across pages and searches.
+    #[serde(default)]
+    pub prev_total_size_bytes: Option<u64>,
+    /// File count of the immediately-previous scan of the same `path`, or `None`
+    /// for the first scan of a folder. Pairs with `prev_total_size_bytes`.
+    #[serde(default)]
+    pub prev_total_files: Option<i64>,
 }
 
 impl ScanHistoryRecord {

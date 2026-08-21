@@ -70,6 +70,7 @@
             <helpers:BoolToAccentForegroundConverter x:Key="BoolToAccentForeground"/>
             <helpers:BoolToSuccessBrushConverter x:Key="BoolToSuccessBrush"/>
             <helpers:BoolToGroupViewLabelConverter x:Key="BoolToGroupViewLabel"/>
+            <helpers:DeltaToBrushConverter x:Key="DeltaToBrush"/>
 
             <!-- Spacing Tokens (Double) -->
             <x:Double x:Key="Space.XXL">32</x:Double>

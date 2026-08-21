@@ -445,6 +445,28 @@ public sealed class SourceToBrushConverter : IValueConverter
 }
 
 /// <summary>
+/// Maps a "change since previous scan" delta (a <see cref="long"/> byte count) to a
+/// theme-aware brush: caution/negative when the folder grew (more space used),
+/// success when it shrank (space reclaimed), and a neutral muted brush when unchanged.
+/// </summary>
+public sealed class DeltaToBrushConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, string language)
+    {
+        long delta = value is long l ? l : 0;
+        string key = delta > 0
+            ? "SystemFillColorCautionBrush"
+            : delta < 0
+                ? "SystemFillColorSuccessBrush"
+                : "TextFillColorSecondaryBrush";
+        return Application.Current.Resources[key] as SolidColorBrush
+            ?? new SolidColorBrush(delta > 0 ? Microsoft.UI.Colors.Orange : delta < 0 ? Microsoft.UI.Colors.Green : Microsoft.UI.Colors.Gray);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, string language) => null!;
+}
+
+/// <summary>
 /// Returns "Group by folder" when <paramref name="value"/> is <c>false</c>,
 /// and "Show flat list" when <c>true</c>, for the history view toggle button.
 /// </summary>

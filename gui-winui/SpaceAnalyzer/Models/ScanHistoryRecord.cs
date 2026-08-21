@@ -254,6 +254,39 @@ public class ScanHistoryRecord
     public string PotentialCleanupDisplay => ByteFormatter.FormatBytes(PotentialCleanupBytes);
     public bool HasPotentialCleanup => PotentialCleanupBytes > 0;
 
+    /// <summary>
+    /// Size of the immediately-previous scan of the same <see cref="Path"/>
+    /// (chronologically prior), or <c>null</c> when this is the first scan of
+    /// that folder. Computed server-side so it is accurate across pages/searches.
+    /// </summary>
+    public ulong? PrevTotalSizeBytes { get; set; }
+
+    /// <summary>File count of the immediately-previous scan of the same folder, or <c>null</c>.</summary>
+    public long? PrevTotalFiles { get; set; }
+
+    /// <summary>True when an earlier scan of the same path exists, so a before/after delta can be shown.</summary>
+    public bool HasPreviousScan => PrevTotalSizeBytes.HasValue || PrevTotalFiles.HasValue;
+
+    /// <summary>Size delta versus the previous scan of the same folder (positive = grew, negative = shrank).</summary>
+    public long DeltaBytes => PrevTotalSizeBytes.HasValue ? (long)TotalSizeBytes - (long)PrevTotalSizeBytes.Value : 0;
+
+    /// <summary>File-count delta versus the previous scan of the same folder.</summary>
+    public long DeltaFiles => PrevTotalFiles.HasValue ? TotalFiles - PrevTotalFiles.Value : 0;
+
+    /// <summary>Human "changed since last scan" size string, e.g. "+12.3 GB" / "-4.1 GB" / "no change".</summary>
+    public string DeltaSizeDisplay => !HasPreviousScan
+        ? string.Empty
+        : DeltaBytes == 0 ? "no change"
+        : $"{(DeltaBytes > 0 ? "+" : "-")}{ByteFormatter.FormatBytes((ulong)Math.Abs(DeltaBytes))}";
+
+    /// <summary>Human file-count delta string, e.g. "+320 files". Empty when zero or no previous.</summary>
+    public string DeltaFilesDisplay => !HasPreviousScan || DeltaFiles == 0
+        ? string.Empty
+        : $"{(DeltaFiles > 0 ? "+" : "-")}{Math.Abs(DeltaFiles):N0} files";
+
+    public bool GrewInSize => DeltaBytes > 0;
+    public bool ShrankInSize => DeltaBytes < 0;
+
     /// <summary>True when the scan encountered traversal errors (coverage gap).</summary>
     public bool HasErrors => ErrorCount > 0;
     public string ErrorsDisplay => HasErrors ? $"{ErrorCount:N0} errors" : "No errors";

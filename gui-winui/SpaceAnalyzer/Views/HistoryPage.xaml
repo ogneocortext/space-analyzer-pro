@@ -281,7 +281,12 @@
                                                     <TextBlock Style="{StaticResource Type.SubTitle}" Text="{x:Bind LeafName, Mode=OneTime}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Path, Mode=OneTime}"/>
                                                     <TextBlock Style="{StaticResource Type.Caption}" Text="{x:Bind RelativeDateDisplay, Mode=OneTime}" Opacity="0.85"/>
                                                 </StackPanel>
-                                                <TextBlock Grid.Column="2" Style="{StaticResource Type.StatValue}" Text="{x:Bind TotalSizeDisplay, Mode=OneTime}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+                                                    <TextBlock Style="{StaticResource Type.StatValue}" Text="{x:Bind TotalSizeDisplay, Mode=OneTime}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                    <TextBlock Style="{StaticResource Type.Tiny}" Text="{x:Bind DeltaSizeDisplay, Mode=OneTime}"
+                                                               Foreground="{x:Bind DeltaBytes, Mode=OneTime, Converter={StaticResource DeltaToBrush}}"
+                                                               Visibility="{x:Bind HasPreviousScan, Mode=OneTime, Converter={StaticResource BoolToVisibility}}"/>
+                                                </StackPanel>
                                                 <Border Grid.Column="3" Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                                                     <TextBlock Text="{x:Bind ScanTypeShort, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold" Foreground="{x:Bind ScanTypeShort, Mode=OneTime, Converter={StaticResource ScanTypeToBrush}}"/>
                                                 </Border>
@@ -403,7 +408,12 @@
                                                                     <TextBlock Text="{x:Bind RelativeDateDisplay, Mode=OneTime}" Style="{StaticResource Type.Tiny}" FontWeight="SemiBold"/>
                                                                     <TextBlock Text="{x:Bind Path, Mode=OneTime}" Style="{StaticResource Type.Caption}" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
                                                                 </StackPanel>
-                                                                <TextBlock Grid.Column="1" Style="{StaticResource Type.Tiny}" Text="{x:Bind TotalSizeDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
+                                                                <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                                    <TextBlock Style="{StaticResource Type.Tiny}" Text="{x:Bind TotalSizeDisplay, Mode=OneTime}"/>
+                                                                    <TextBlock Style="{StaticResource Type.Tiny}" Text="{x:Bind DeltaSizeDisplay, Mode=OneTime}"
+                                                                               Foreground="{x:Bind DeltaBytes, Mode=OneTime, Converter={StaticResource DeltaToBrush}}"
+                                                                               Visibility="{x:Bind HasPreviousScan, Mode=OneTime, Converter={StaticResource BoolToVisibility}}"/>
+                                                                </StackPanel>
                                                                 <TextBlock Grid.Column="2" Style="{StaticResource Type.Tiny}" Text="{x:Bind FilesDisplay, Mode=OneTime}" VerticalAlignment="Center"/>
                                                                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="{StaticResource Space.XS}" VerticalAlignment="Center">
                                                                     <Button Content="View" Click="ViewDetails_Click" Tag="{x:Bind Id}" Style="{StaticResource SmallButton}"/>

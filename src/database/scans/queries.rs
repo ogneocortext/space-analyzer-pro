@@ -155,10 +155,18 @@ impl Database {
 
     /// Get scan history, most recent first
     pub fn get_scan_history(&self, limit: usize) -> rusqlite::Result<Vec<ScanHistoryRecord>> {
+        // CTE excludes embedding-only anchors so the LAG partition (which
+        // computes "size of the previous scan of the same path") never pairs a
+        // real scan with a 0-byte anchor row.
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
-                     COUNT(*) OVER (PARTITION BY path) AS duplicate_count
-              FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL) ORDER BY timestamp DESC LIMIT ?1",
+            "WITH base AS (
+                 SELECT * FROM scan_history WHERE (is_index_only = 0 OR is_index_only IS NULL)
+             )
+             SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
+                      COUNT(*) OVER (PARTITION BY path) AS duplicate_count, \
+                      LAG(total_size_bytes) OVER (PARTITION BY path ORDER BY timestamp) AS prev_total_size_bytes, \
+                      LAG(total_files) OVER (PARTITION BY path ORDER BY timestamp) AS prev_total_files \
+               FROM base ORDER BY timestamp DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |row| {
             Ok(ScanHistoryRecord {
@@ -184,6 +192,8 @@ impl Database {
                 reclaim_tier_sizes_json: row.get(19)?,
                 category_reclaimable_json: row.get(20)?,
                 duplicate_count: row.get::<_, i64>(21)? as usize,
+                prev_total_size_bytes: row.get::<_, Option<i64>>(22)?.map(|v| v as u64),
+                prev_total_files: row.get::<_, Option<i64>>(23)?,
             })
         })?;
         rows.collect()
@@ -250,7 +260,9 @@ impl Database {
         let columns = "id, path, total_files, total_size_bytes, total_size_mb, duration_secs, \
                      file_types_json, extension_sizes_json, top_directories_json, largest_files_json, \
                      category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
-                     COUNT(*) OVER (PARTITION BY path) AS duplicate_count";
+                     COUNT(*) OVER (PARTITION BY path) AS duplicate_count, \
+                     LAG(total_size_bytes) OVER (PARTITION BY path ORDER BY timestamp) AS prev_total_size_bytes, \
+                     LAG(total_files) OVER (PARTITION BY path ORDER BY timestamp) AS prev_total_files";
 
         let dup_clause = format!(
             "path IN (SELECT path FROM scan_history {where_idx} GROUP BY path HAVING COUNT(*) > 1)"
@@ -335,6 +347,8 @@ impl Database {
                     reclaim_tier_sizes_json: row.get(19)?,
                     category_reclaimable_json: row.get(20)?,
                     duplicate_count: row.get::<_, i64>(21)? as usize,
+                    prev_total_size_bytes: row.get::<_, Option<i64>>(22)?.map(|v| v as u64),
+                    prev_total_files: row.get::<_, Option<i64>>(23)?,
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
@@ -514,10 +528,20 @@ impl Database {
 
     /// Get a specific scan by ID
     pub fn get_scan_by_id(&self, id: i64) -> rusqlite::Result<Option<ScanHistoryRecord>> {
+        // `base` keeps the requested row plus all real scans, but drops other
+        // embedding-only anchors. That way the LAG (previous scan of the same
+        // path) references real scans only — an anchor's 0-byte size can't be
+        // mistaken for "the folder was empty last time".
         let mut stmt = self.conn.prepare(
-            "SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
-                     (SELECT COUNT(*) FROM scan_history s2 WHERE s2.path = scan_history.path AND (s2.is_index_only = 0 OR s2.is_index_only IS NULL)) AS duplicate_count
-              FROM scan_history WHERE id = ?1",
+            "WITH base AS (
+                 SELECT * FROM scan_history
+                 WHERE (is_index_only = 0 OR is_index_only IS NULL) OR id = ?1
+             )
+             SELECT id, path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, category_sizes_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only, total_dirs, error_count, reclaim_tier_sizes_json, category_reclaimable_json, \
+                      (SELECT COUNT(*) FROM scan_history s2 WHERE s2.path = base.path AND (s2.is_index_only = 0 OR s2.is_index_only IS NULL)) AS duplicate_count, \
+                      LAG(total_size_bytes) OVER (PARTITION BY path ORDER BY timestamp) AS prev_total_size_bytes, \
+                      LAG(total_files) OVER (PARTITION BY path ORDER BY timestamp) AS prev_total_files \
+               FROM base WHERE id = ?1",
         )?;
         let row = stmt.query_row(params![id], |row| {
             Ok(ScanHistoryRecord {
@@ -543,6 +567,8 @@ impl Database {
                 reclaim_tier_sizes_json: row.get(19)?,
                 category_reclaimable_json: row.get(20)?,
                 duplicate_count: row.get::<_, i64>(21)? as usize,
+                prev_total_size_bytes: row.get::<_, Option<i64>>(22)?.map(|v| v as u64),
+                prev_total_files: row.get::<_, Option<i64>>(23)?,
             })
         });
         match row {
@@ -984,6 +1010,39 @@ mod tests {
         assert_eq!(r.potential_cleanup_bytes, 0);
         assert_eq!(r.category_sizes_json, "{}");
         assert!(r.timestamp.starts_with("2026-08-03"));
+    }
+
+    #[test]
+    fn get_scan_history_page_prev_scan_lag_excludes_index_only() {
+        let db = test_db();
+        // Two real scans of C:\grow, oldest (100 B) then newest (150 B).
+        let _old = insert_scan(&db, "C:\\grow", 100, 5);
+        let _new = insert_scan(&db, "C:\\grow", 150, 7);
+        // Index-only embedding anchor for the same path (created by `embed`).
+        db.conn
+            .execute(
+                "INSERT INTO scan_history (path, total_files, total_size_bytes, total_size_mb, duration_secs, file_types_json, extension_sizes_json, top_directories_json, largest_files_json, deep_scan, shallow_scan, max_scan_depth, potential_cleanup_bytes, timestamp, is_index_only)
+                 VALUES ('C:\\grow', 0, 0, 0.0, 0.0, '{}', '{}', '[]', '[]', 0, 0, 5, 0, '2026-08-03T00:00:09Z', 1)",
+                [],
+            )
+            .unwrap();
+
+        let (rows, total) = db
+            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .unwrap();
+        assert_eq!(total, 2, "index-only anchor excluded by default");
+        let newest = rows.iter().find(|r| r.total_size_bytes == 150).unwrap();
+        assert_eq!(
+            newest.prev_total_size_bytes,
+            Some(100),
+            "newest scan's previous must be the older real scan, not the 0-byte anchor"
+        );
+        assert_eq!(newest.prev_total_files, Some(5));
+        let oldest = rows.iter().find(|r| r.total_size_bytes == 100).unwrap();
+        assert_eq!(
+            oldest.prev_total_size_bytes, None,
+            "first scan of a folder has no previous"
+        );
     }
 
     #[test]
