@@ -55,8 +55,8 @@ help:
     @echo "  just check-updates       Check app updates (portable online + winget + deps)"
     @echo "  just check-code-deps     Check code dependencies only (npm, pip, cargo)"
     @echo "  just check-updates-fast  Check apps only (skip dependency scan)"
-    @echo "  just dashboard           Open interactive HTML dashboard"
-    @echo "  just dashboard-server    Start server at localhost:3847 for live updates"
+    @echo "  just update-dashboard     Open interactive HTML update dashboard"
+    @echo "  just update-dashboard-server  Start the update dashboard server at localhost:3847"
     @echo "Code Quality:"
     @echo "  just audit               Check for unused dependencies"
     @echo "  just doc                 Build docs (rustdoc)"
@@ -284,12 +284,12 @@ check-updates-fast:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipDependencies
 
 # Open update dashboard in browser (generates HTML + opens)
-dashboard:
+update-dashboard:
     @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/check_updates.ps1 -SkipPortable -SkipWinget -Dashboard
 
 # Start dashboard server (http://localhost:3847) for live updates
-dashboard-server:
-    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/dashboard_server.ps1
+update-dashboard-server:
+    @pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/utility/update_dashboard_server.ps1
 
 # Full Windows package (local only, no CI) — WinUI 3
 package-full: package-winui

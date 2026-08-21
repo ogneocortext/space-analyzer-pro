@@ -21,7 +21,9 @@ if (-not (Test-Path $dashboardPath)) {
 }
 # Always-viewable shell (the dashboard's own segment). Served at "/" so the
 # dashboard opens instantly without first running the update-generator pipeline.
-$shellPath = Join-Path $PSScriptRoot 'dashboard' 'shell.html'
+    $shellPath = Join-Path $PSScriptRoot 'update_dashboard' 'shell.html'
+# Decoupled data written by check_updates.ps1 -Dashboard (no HTML generation required).
+    $dataPath = Join-Path $PSScriptRoot 'update_dashboard' 'update_data.json'
 
 Write-Host ""
 Write-Host "  Update Dashboard Server" -ForegroundColor Cyan
@@ -186,7 +188,7 @@ try {
                     $html = Get-Content $dashboardPath -Raw -Encoding UTF8
                     Send-Html $Context $html
                 } else {
-                    $buf = [System.Text.Encoding]::UTF8.GetBytes("Dashboard not found. Run check_updates.ps1 or ensure scripts/utility/dashboard/shell.html exists.")
+                    $buf = [System.Text.Encoding]::UTF8.GetBytes("Dashboard not found. Run check_updates.ps1 or ensure scripts/utility/update_dashboard/shell.html exists.")
                     $context.Response.StatusCode = 404
                     $context.Response.OutputStream.Write($buf, 0, $buf.Length)
                     $context.Response.Close()
@@ -202,10 +204,33 @@ try {
                 $body = $reader.ReadToEnd()
                 Run-BulkUpdate $Context $body
             }
-            '^/api/scan$' {
-                $out = & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\scripts\utility\check_updates.ps1' -SkipPortable -SkipWinget -OutputFormat json" 2>$null
-                try { $json = $out | ConvertFrom-Json -AsHashtable } catch { $json = @() }
-                Send-Json $Context @{ packages = $json; timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') }
+            '^/api/refresh$' {
+                # Re-run the dependency check (portable/winget skipped for speed) which writes
+                # update_data.json; then serve the freshly written data.
+                $genPath = Join-Path $PSScriptRoot 'check_updates.ps1'
+                & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& '$genPath' -Dashboard -SkipPortable -SkipWinget" 2>$null
+                if (Test-Path $dataPath) {
+                    try {
+                        $obj = (Get-Content $dataPath -Raw -Encoding UTF8) | ConvertFrom-Json -AsHashtable
+                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary }
+                    } catch {
+                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                    }
+                } else {
+                    Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                }
+            }
+            '^/api/updates$' {
+                if (Test-Path $dataPath) {
+                    try {
+                        $obj = (Get-Content $dataPath -Raw -Encoding UTF8) | ConvertFrom-Json -AsHashtable
+                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary }
+                    } catch {
+                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                    }
+                } else {
+                    Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null }
+                }
             }
             '^/shell$' {
                 if (Test-Path $shellPath) {
@@ -217,11 +242,14 @@ try {
                 if (Test-Path $dashboardPath) {
                     $html = Get-Content $dashboardPath -Raw -Encoding UTF8
                     Send-Html $Context $html
+                } elseif (Test-Path $shellPath) {
+                    $html = Get-Content $shellPath -Raw -Encoding UTF8
+                    Send-Html $Context $html
                 } else { $context.Response.StatusCode = 404; $context.Response.Close() }
             }
-            '^/dashboard/(.+)$' {
+            '^/update_dashboard/(.+)$' {
                 $name = $matches[1]
-                $fp = Join-Path $PSScriptRoot 'dashboard' $name
+                $fp = Join-Path $PSScriptRoot 'update_dashboard' $name
                 if (Test-Path $fp -PathType Leaf) {
                     $ext = [System.IO.Path]::GetExtension($fp).ToLower()
                     $ct = switch ($ext) {

@@ -36,6 +36,8 @@ param(
 
     [switch]$SkipDependencies,
 
+    [switch]$ExportHtml,
+
     [switch]$Dashboard
 )
 
@@ -415,7 +417,7 @@ function Get-UpdateCommand {
 }
 
 function Show-Dashboard {
-    param([array]$PortableResults, [array]$WingetResults, [array]$DepResults)
+    param([array]$PortableResults, [array]$WingetResults, [array]$DepResults, [switch]$ExportHtml)
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 
@@ -744,7 +746,7 @@ var SERVER_ON=false;
 var SERVER_URL='http://localhost:3847';
 
 function checkServer(){
-    fetch(SERVER_URL+'/api/scan',{method:'GET',signal:AbortSignal.timeout(2000)}).then(function(r){
+    fetch(SERVER_URL+'/api/refresh',{method:'GET',signal:AbortSignal.timeout(2000)}).then(function(r){
         if(r.ok){SERVER_ON=true;document.getElementById('serverDot').className='server-dot on';document.getElementById('serverLabel').textContent='Live';document.getElementById('bulkBtn').style.display='';document.getElementById('lastScan').textContent='Last scan: connected'}
     }).catch(function(){
         SERVER_ON=false;document.getElementById('serverDot').className='server-dot off';document.getElementById('serverLabel').textContent='Offline';document.getElementById('bulkBtn').style.display='none';
@@ -881,13 +883,38 @@ checkServer();render();
 </html>
 '@
 
-    $html = $htmlTemplate.Replace('__TIMESTAMP__', $timestamp).Replace('__JSON_DATA__', $jsonData)
+    # ── Decoupled data output (default) ──
+    # The committed dashboard shell (scripts/utility/update_dashboard/shell.html) is the single
+    # source of truth for the UI. We always write structured JSON here; the HTML artifact
+    # is opt-in via -ExportHtml for static snapshots, so the dashboard is viewable without
+    # depending on a generated file.
+    $segmentDir = Join-Path $PSScriptRoot 'dashboard'
+    if (-not (Test-Path $segmentDir)) { New-Item -ItemType Directory -Path $segmentDir -Force | Out-Null }
+    $dataPath = Join-Path $segmentDir 'update_data.json'
 
-    $outPath = Join-Path (Get-Location) 'update_dashboard.html'
-    $html | Out-File -FilePath $outPath -Encoding UTF8 -Force
-    Write-Host "`n[*] Dashboard generated: $outPath" -ForegroundColor Green
-    Write-Host "  Opening in default browser..." -ForegroundColor DarkGray
-    Start-Process $outPath
+    $data = @{
+        timestamp = $timestamp
+        summary = @{
+            total    = $allData.Count
+            outdated = ($allData | Where-Object { $_.Status -eq 'outdated' }).Count
+            current  = ($allData | Where-Object { $_.Status -eq 'current' }).Count
+            projects = ($allData | ForEach-Object { $_.Project } | Sort-Object -Unique).Count
+        }
+        packages = $allData
+    }
+    $data | ConvertTo-Json -Depth 6 | Out-File -FilePath $dataPath -Encoding UTF8 -Force
+
+    Write-Host "`n[*] Update data written: $dataPath" -ForegroundColor Green
+    Write-Host "  Open the dashboard at http://localhost:3847 (run update_dashboard_server.ps1 if not started)." -ForegroundColor DarkGray
+    Write-Host "  $($data.summary.outdated) outdated / $($data.summary.total) checked." -ForegroundColor $(if ($data.summary.outdated -gt 0) { 'Yellow' } else { 'Green' })
+
+    if ($ExportHtml) {
+        $html = $htmlTemplate.Replace('__TIMESTAMP__', $timestamp).Replace('__JSON_DATA__', $jsonData)
+        $outPath = Join-Path (Get-Location) 'update_dashboard.html'
+        $html | Out-File -FilePath $outPath -Encoding UTF8 -Force
+        Write-Host "`n[*] Dashboard HTML generated: $outPath" -ForegroundColor Green
+        Start-Process $outPath
+    }
 }
 
 function Show-TableReport {
@@ -985,7 +1012,7 @@ if (-not $SkipDependencies) {
 }
 
 if ($Dashboard) {
-    Show-Dashboard -PortableResults $portableResults -WingetResults $wingetResults -DepResults $depResults
+    Show-Dashboard -PortableResults $portableResults -WingetResults $wingetResults -DepResults $depResults -ExportHtml:$ExportHtml
 } else {
     Show-TableReport -PortableResults $portableResults -WingetResults $wingetResults -DepResults $depResults
 }

@@ -200,6 +200,7 @@ scripts/utility/analysis_history/
 scripts/utility/ux_analysis/
 scripts/utility/docs/
 scripts/utility/*.log
+scripts/utility/update_dashboard/update_data.json
 scripts/utility/_verify_scope.mjs
 
 # Stray capture screenshots dropped at the repo root.

@@ -61,11 +61,12 @@ a{color:var(--bl)}
 </header>
 <main>
   <section id="updates" class="panel active">
-    <p class="note">This view is independent of the generator — data is fetched live from the server. Run a scan to populate, or open the generated report at <a href="/full">/full</a>.</p>
+    <p class="note">This view is the dashboard's single source of truth — it renders the JSON data written by <code>check_updates.ps1 -Dashboard</code>. Click <b>Refresh</b> to refresh live (dependencies), or run a full portable + winget + dependencies pass for the complete picture. A static HTML export (if generated) is at <a href="/full">/full</a>.</p>
     <div class="ctrl">
-      <button id="scanBtn" class="gen-btn">Run scan</button>
+      <button id="scanBtn" class="gen-btn">Refresh</button>
       <span id="scanStatus" class="ts"></span>
     </div>
+    <div id="summary" class="ts" style="margin-bottom:12px"></div>
     <div id="pkgList" class="list"></div>
   </section>
   <section id="map" class="panel">
@@ -154,15 +155,21 @@ a{color:var(--bl)}
     });
   });
 
-  // ---- Updates: fetch live data from the server ----
+  // ---- Updates: render JSON data from the server (single source of truth) ----
   var scanBtn = document.getElementById('scanBtn');
   var scanStatus = document.getElementById('scanStatus');
   var pkgList = document.getElementById('pkgList');
+  var summaryEl = document.getElementById('summary');
 
   function badge(method){
     var m = (method || '').toLowerCase();
     var cls = (m.indexOf('npm')>=0)?'npm':(m.indexOf('pip')>=0)?'pip':(m.indexOf('cargo')>=0)?'cargo':(m.indexOf('portable')>=0)?'portable':(m.indexOf('winget')>=0)?'winget':'cargo';
     return '<span class="badge '+cls+'">'+(method||'?')+'</span>';
+  }
+
+  function renderSummary(s){
+    if (!s) { summaryEl.textContent = ''; return; }
+    summaryEl.innerHTML = '<b style="color:var(--o)">'+s.outdated+'</b> outdated · <b style="color:var(--g)">'+s.current+'</b> up to date · '+s.total+' checked · '+s.projects+' projects';
   }
 
   function renderPackages(pkgs){
@@ -200,20 +207,31 @@ a{color:var(--bl)}
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
 
+  function applyData(d){
+    scanStatus.textContent = 'Last scan: ' + (d.timestamp || 'never');
+    renderSummary(d.summary);
+    renderPackages(d.packages);
+  }
+
+  function loadUpdates(){
+    fetch('/api/updates').then(function(r){ return r.json(); }).then(applyData).catch(function(){
+      pkgList.innerHTML = '<div class="empty">No saved update data. Click <b>Refresh</b> to generate it.</div>';
+    });
+  }
+
   function runScan(){
     scanBtn.disabled = true;
     scanStatus.textContent = 'Scanning…';
-    pkgList.innerHTML = '<div class="empty">Running update scan…</div>';
-    fetch('/api/scan').then(function(r){ return r.json(); }).then(function(d){
-      scanStatus.textContent = 'Last scan: ' + (d.timestamp || 'now');
-      renderPackages(d.packages);
+    pkgList.innerHTML = '<div class="empty">Refreshing update data…</div>';
+    fetch('/api/refresh').then(function(r){ return r.json(); }).then(function(d){
+      applyData(d);
     }).catch(function(e){
       scanStatus.textContent = 'Scan failed: ' + e.message;
-      pkgList.innerHTML = '<div class="empty">Could not reach the scan API. Is the dashboard server running?</div>';
+      pkgList.innerHTML = '<div class="empty">Could not reach the update API. Is the dashboard server running?</div>';
     }).finally(function(){ scanBtn.disabled = false; });
   }
   scanBtn.addEventListener('click', runScan);
-  runScan();
+  loadUpdates();
 
   // ---- Mermaid (loaded on demand; offline-safe fallback) ----
   var mermaidDone = false;

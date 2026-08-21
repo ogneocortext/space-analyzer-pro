@@ -69,8 +69,8 @@ just check-updates              # Full check: portable + winget + dependencies
 just check-deps                 # Dependencies only (npm, pip, cargo)
 just check-updates-fast         # Portable apps + winget (skip deps)
 just check-updates-json         # JSON output
-just dashboard                  # Open interactive HTML dashboard in browser
-just dashboard-server           # Start server at localhost:3847 for live updates
+just update-dashboard          # Open interactive HTML update dashboard in browser
+just update-dashboard-server    # Start server at localhost:3847 for live updates
 powershell scripts/utility/check_updates.ps1 -ScanPaths "E:\Tools"
 powershell scripts/utility/check_updates.ps1 -SkipPortable  # winget + deps only
 powershell scripts/utility/check_updates.ps1 -DependencyPaths "E:\MyProjects"
@@ -82,7 +82,7 @@ powershell scripts/utility/check_updates.ps1 -Dashboard      # Generate + open H
 The dashboard supports live dependency updates via a local HTTP server:
 
 ```bash
-just dashboard-server           # Start server on http://localhost:3847
+just update-dashboard-server    # Start server on http://localhost:3847
 ```
 
 Then open `http://localhost:3847` in your browser. The dashboard will:
