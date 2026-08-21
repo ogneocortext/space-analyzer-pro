@@ -19,6 +19,9 @@ $dashboardPath = Join-Path (Split-Path $PSScriptRoot) '..' 'update_dashboard.htm
 if (-not (Test-Path $dashboardPath)) {
     $dashboardPath = Join-Path (Get-Location) 'update_dashboard.html'
 }
+# Always-viewable shell (the dashboard's own segment). Served at "/" so the
+# dashboard opens instantly without first running the update-generator pipeline.
+$shellPath = Join-Path $PSScriptRoot 'dashboard' 'shell.html'
 
 Write-Host ""
 Write-Host "  Update Dashboard Server" -ForegroundColor Cyan
@@ -176,11 +179,14 @@ try {
 
         switch -Regex ($path) {
             '^/$' {
-                if (Test-Path $dashboardPath) {
+                if (Test-Path $shellPath) {
+                    $html = Get-Content $shellPath -Raw -Encoding UTF8
+                    Send-Html $Context $html
+                } elseif (Test-Path $dashboardPath) {
                     $html = Get-Content $dashboardPath -Raw -Encoding UTF8
                     Send-Html $Context $html
                 } else {
-                    $buf = [System.Text.Encoding]::UTF8.GetBytes("Dashboard not found at $dashboardPath")
+                    $buf = [System.Text.Encoding]::UTF8.GetBytes("Dashboard not found. Run check_updates.ps1 or ensure scripts/utility/dashboard/shell.html exists.")
                     $context.Response.StatusCode = 404
                     $context.Response.OutputStream.Write($buf, 0, $buf.Length)
                     $context.Response.Close()
@@ -200,6 +206,37 @@ try {
                 $out = & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'E:\Self-Built-Web-and-Mobile-Apps\Space-Analyzer\scripts\utility\check_updates.ps1' -SkipPortable -SkipWinget -OutputFormat json" 2>$null
                 try { $json = $out | ConvertFrom-Json -AsHashtable } catch { $json = @() }
                 Send-Json $Context @{ packages = $json; timestamp = (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') }
+            }
+            '^/shell$' {
+                if (Test-Path $shellPath) {
+                    $html = Get-Content $shellPath -Raw -Encoding UTF8
+                    Send-Html $Context $html
+                } else { $context.Response.StatusCode = 404; $context.Response.Close() }
+            }
+            '^/full$' {
+                if (Test-Path $dashboardPath) {
+                    $html = Get-Content $dashboardPath -Raw -Encoding UTF8
+                    Send-Html $Context $html
+                } else { $context.Response.StatusCode = 404; $context.Response.Close() }
+            }
+            '^/dashboard/(.+)$' {
+                $name = $matches[1]
+                $fp = Join-Path $PSScriptRoot 'dashboard' $name
+                if (Test-Path $fp -PathType Leaf) {
+                    $ext = [System.IO.Path]::GetExtension($fp).ToLower()
+                    $ct = switch ($ext) {
+                        '.css' { 'text/css' }
+                        '.js' { 'application/javascript' }
+                        '.html' { 'text/html; charset=utf-8' }
+                        '.json' { 'application/json' }
+                        default { 'application/octet-stream' }
+                    }
+                    $buf = [System.Text.Encoding]::UTF8.GetBytes((Get-Content $fp -Raw -Encoding UTF8))
+                    $context.Response.StatusCode = 200
+                    $context.Response.ContentType = $ct
+                    $context.Response.OutputStream.Write($buf, 0, $buf.Length)
+                    $context.Response.Close()
+                } else { $context.Response.StatusCode = 404; $context.Response.Close() }
             }
             default {
                 $context.Response.StatusCode = 404

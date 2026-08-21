@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Space Analyzer — Dashboard</title>
+<style>
+:root{
+  --bg:#0d1117; --s:#161b22; --b:#30363d; --t:#e6edf3; --tm:#8b949e;
+  --tb:#f0f6fc; --r:#f85149; --o:#d29922; --g:#3fb950; --bl:#58a6ff;
+  --p:#bc8cff; --c:#39d2c0; --pk:#f778ba;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--t);line-height:1.5}
+.topbar{display:flex;align-items:center;gap:24px;padding:14px 24px;background:var(--s);border-bottom:1px solid var(--b);position:sticky;top:0;z-index:5}
+.brand{font-size:16px;font-weight:600;color:var(--tb)}
+.brand span{color:var(--tm);font-weight:400}
+.tabs{display:flex;gap:6px}
+.tab{padding:7px 16px;background:transparent;border:1px solid transparent;border-radius:7px;color:var(--tm);font-size:13px;cursor:pointer;transition:all .15s}
+.tab:hover{color:var(--t);border-color:var(--b)}
+.tab.active{background:var(--bl);border-color:var(--bl);color:#fff;font-weight:600}
+main{max-width:1200px;margin:0 auto;padding:24px}
+.panel{display:none}
+.panel.active{display:block}
+.ctrl{display:flex;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.gen-btn{padding:8px 16px;background:var(--g);border:none;border-radius:6px;color:#000;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.gen-btn:hover{opacity:.85}
+.gen-btn:disabled{opacity:.5;cursor:default}
+.ts{color:var(--tm);font-size:12px}
+.list{display:flex;flex-direction:column;gap:10px}
+.pkg{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--s);border:1px solid var(--b);border-radius:10px;font-size:13px}
+.pkg .pname{font-weight:600;min-width:200px}
+.pkg .pver{color:var(--tm);font-family:'SF Mono',Consolas,monospace;font-size:12px}
+.pkg .parrow{color:var(--tm)}
+.pkg .pnew{font-family:'SF Mono',Consolas,monospace;font-size:12px;color:var(--g)}
+.pkg .pmeth{margin-left:auto;display:flex;gap:6px;align-items:center}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase}
+.badge.npm{background:rgba(63,185,80,.12);color:var(--g)}
+.badge.pip{background:rgba(88,166,255,.12);color:var(--bl)}
+.badge.cargo{background:rgba(210,153,34,.12);color:var(--o)}
+.badge.portable{background:rgba(188,140,255,.12);color:var(--p)}
+.badge.winget{background:rgba(247,120,186,.12);color:var(--pk)}
+.act{padding:5px 12px;background:var(--s);border:1px solid var(--b);border-radius:6px;color:var(--tm);font-size:12px;cursor:pointer;transition:all .15s}
+.act:hover{border-color:var(--bl);color:var(--t)}
+.act.run:hover{border-color:var(--g);color:var(--g)}
+.empty{padding:40px;text-align:center;color:var(--tm);background:var(--s);border:1px dashed var(--b);border-radius:10px}
+.map-wrap{background:var(--s);border:1px solid var(--b);border-radius:12px;padding:24px;overflow:auto}
+.mermaid{text-align:center}
+#fallback{background:var(--bg);border:1px solid var(--b);border-radius:8px;padding:16px;overflow:auto;font-family:'SF Mono',Consolas,monospace;font-size:12px;color:var(--tm);white-space:pre}
+.note{color:var(--tm);font-size:12px;margin:0 0 14px}
+a{color:var(--bl)}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Space Analyzer <span>Dashboard</span></div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="updates">Updates</button>
+    <button class="tab" data-tab="map">System Map</button>
+  </nav>
+</header>
+<main>
+  <section id="updates" class="panel active">
+    <p class="note">This view is independent of the generator — data is fetched live from the server. Run a scan to populate, or open the generated report at <a href="/full">/full</a>.</p>
+    <div class="ctrl">
+      <button id="scanBtn" class="gen-btn">Run scan</button>
+      <span id="scanStatus" class="ts"></span>
+    </div>
+    <div id="pkgList" class="list"></div>
+  </section>
+  <section id="map" class="panel">
+    <p class="note">How everything connects at a glance — WinUI 3 app, Rust core, local services, and the dashboards. (Rendered with Mermaid; if offline, the raw source is shown below.)</p>
+    <div class="map-wrap">
+      <div class="mermaid" id="diagram">flowchart TB
+  subgraph WINUI["WinUI 3 Desktop App (C# / .NET)"]
+    direction TB
+    PAGES["Pages / Views<br/>Dashboard · Scan · History · Duplicates<br/>Smart Search · AI Assistant · Workflows<br/>Settings · System · Cleanup · USN · Installed Apps"]
+    VM["ViewModels (MVVM)"]
+    SVC["Services<br/>ScannerService · ToolExecutor · OllamaClient"]
+    PAGES --> VM --> SVC
+  end
+  subgraph RUST["Rust Core (space-analyzer-cli)"]
+    direction TB
+    CLI["CLI Subcommands<br/>scan · disk-info · history · dedup<br/>app-inventory · db · settings · search<br/>embed · semantic-search · usn · bloat<br/>predict · recommendations · dependencies"]
+    MOD["Library Modules<br/>scan-engine · gpu-compute · database<br/>ollama · system-monitor · app_inventory"]
+    CLI --> MOD
+  end
+  subgraph LOCAL["Local Services"]
+    OLL["Ollama (localhost:11434)<br/>chat + nomic-embed-text"]
+    SQL["SQLite DB<br/>scan_history · file_embeddings<br/>semantic_index · settings"]
+  end
+  subgraph DASH["Testing Dashboards (Python)"]
+    direction TB
+    UPD["Update Dashboard :3847<br/>(this shell — always viewable)"]
+    UX["Live UX Dashboard :8777<br/>progress · gallery · reports · agent"]
+  end
+  VIS["Vision / UX Pipeline<br/>(analyze_ux_screenshots.py → gemma4)"]
+  REC["Recycle Bin / File Ops"]
+
+  WINUI -->|"subprocess spawn + JSON"| RUST
+  SVC -->|"RunCliAsync (stream progress)"| CLI
+  SVC -->|"tool calls (agentic loop)"| CLI
+  CLI -->|"read / write"| SQL
+  CLI -->|"embeddings + similarity"| OLL
+  SVC -->|"chat + streaming"| OLL
+  DASH -->|"vision analysis"| OLL
+  DASH --> VIS
+  VIS -->|"gemma4"| OLL
+  DASH -->|"macro_logs / analysis_progress.json"| WINUI
+  SVC --> REC</div>
+      <pre id="fallback" style="display:none">flowchart TB
+  subgraph WINUI["WinUI 3 Desktop App (C# / .NET)"]
+    PAGES["Pages / Views"]
+    VM["ViewModels (MVVM)"]
+    SVC["Services: ScannerService · ToolExecutor · OllamaClient"]
+    PAGES --> VM --> SVC
+  end
+  subgraph RUST["Rust Core (space-analyzer-cli)"]
+    CLI["CLI Subcommands"]
+    MOD["Library Modules: scan-engine · gpu-compute · database · ollama · system-monitor · app_inventory"]
+    CLI --> MOD
+  end
+  subgraph LOCAL["Local Services"]
+    OLL["Ollama (localhost:11434)"]
+    SQL["SQLite DB"]
+  end
+  subgraph DASH["Testing Dashboards (Python)"]
+    UPD["Update Dashboard :3847 (this shell)"]
+    UX["Live UX Dashboard :8777"]
+  end
+  VIS["Vision / UX Pipeline (gemma4)"]
+  REC["Recycle Bin / File Ops"]
+  WINUI -->|subprocess + JSON| RUST
+  SVC -->|RunCliAsync| CLI
+  CLI -->|read/write| SQL
+  CLI -->|embeddings| OLL
+  SVC -->|chat| OLL
+  DASH -->|vision| OLL
+  DASH --> VIS
+  VIS -->|gemma4| OLL
+  SVC --> REC</pre>
+    </div>
+  </section>
+</main>
+<script>
+  // ---- Tab switching ----
+  document.querySelectorAll('.tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'map') renderMermaid();
+    });
+  });
+
+  // ---- Updates: fetch live data from the server ----
+  var scanBtn = document.getElementById('scanBtn');
+  var scanStatus = document.getElementById('scanStatus');
+  var pkgList = document.getElementById('pkgList');
+
+  function badge(method){
+    var m = (method || '').toLowerCase();
+    var cls = (m.indexOf('npm')>=0)?'npm':(m.indexOf('pip')>=0)?'pip':(m.indexOf('cargo')>=0)?'cargo':(m.indexOf('portable')>=0)?'portable':(m.indexOf('winget')>=0)?'winget':'cargo';
+    return '<span class="badge '+cls+'">'+(method||'?')+'</span>';
+  }
+
+  function renderPackages(pkgs){
+    if (!pkgs || !pkgs.length){
+      pkgList.innerHTML = '<div class="empty">No outdated packages reported. Click <b>Run scan</b> to check (or the generator has not found updates).</div>';
+      return;
+    }
+    pkgList.innerHTML = pkgs.map(function(p){
+      var cmd = p.Cmd || '';
+      return '<div class="pkg">'
+        + '<span class="pname">'+esc(p.Name||'?')+'</span>'
+        + '<span class="pver">'+esc(p.Installed||'?')+'</span>'
+        + '<span class="parrow">→</span>'
+        + '<span class="pnew">'+esc(p.Available||'?')+'</span>'
+        + '<span class="pmeth">'+badge(p.Method)+'</span>'
+        + '<button class="act" data-copy="'+esc(cmd)+'">Copy</button>'
+        + '<button class="act run" data-update="'+esc(cmd)+'" data-name="'+esc(p.Name||'')+'">Update</button>'
+        + '</div>';
+    }).join('');
+    pkgList.querySelectorAll('[data-copy]').forEach(function(b){
+      b.addEventListener('click', function(){
+        navigator.clipboard.writeText(b.dataset.copy).then(function(){ b.textContent='Copied'; setTimeout(function(){ b.textContent='Copy'; }, 1200); });
+      });
+    });
+    pkgList.querySelectorAll('[data-update]').forEach(function(b){
+      b.addEventListener('click', function(){
+        b.textContent='Updating…'; b.disabled=true;
+        fetch('/api/update', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({cmd:b.dataset.update, name:b.dataset.name, method:'manual'})})
+          .then(function(){ b.textContent='Started'; })
+          .catch(function(){ b.textContent='Error'; })
+          .finally(function(){ setTimeout(function(){ b.textContent='Update'; b.disabled=false; }, 1500); });
+      });
+    });
+  }
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
+
+  function runScan(){
+    scanBtn.disabled = true;
+    scanStatus.textContent = 'Scanning…';
+    pkgList.innerHTML = '<div class="empty">Running update scan…</div>';
+    fetch('/api/scan').then(function(r){ return r.json(); }).then(function(d){
+      scanStatus.textContent = 'Last scan: ' + (d.timestamp || 'now');
+      renderPackages(d.packages);
+    }).catch(function(e){
+      scanStatus.textContent = 'Scan failed: ' + e.message;
+      pkgList.innerHTML = '<div class="empty">Could not reach the scan API. Is the dashboard server running?</div>';
+    }).finally(function(){ scanBtn.disabled = false; });
+  }
+  scanBtn.addEventListener('click', runScan);
+  runScan();
+
+  // ---- Mermaid (loaded on demand; offline-safe fallback) ----
+  var mermaidDone = false;
+  function renderMermaid(){
+    if (mermaidDone) return;
+    mermaidDone = true;
+    var diagram = document.getElementById('diagram');
+    var fallback = document.getElementById('fallback');
+    import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs')
+      .then(function(mod){
+        var mermaid = mod.default;
+        mermaid.initialize({ startOnLoad:false, theme:'dark', securityLevel:'loose' });
+        return mermaid.run({ nodes:[diagram] });
+      })
+      .then(function(){ fallback.style.display='none'; })
+      .catch(function(){ diagram.style.display='none'; fallback.style.display='block'; });
+  }
+</script>
+</body>
+</html>
