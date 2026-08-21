@@ -15,10 +15,6 @@ $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://localhost:${Port}/")
 $listener.Start()
 
-$dashboardPath = Join-Path (Split-Path $PSScriptRoot) '..' 'update_dashboard.html'
-if (-not (Test-Path $dashboardPath)) {
-    $dashboardPath = Join-Path (Get-Location) 'update_dashboard.html'
-}
 # Always-viewable shell (the dashboard's own segment). Served at "/" so the
 # dashboard opens instantly without first running the update-generator pipeline.
     $shellPath = Join-Path $PSScriptRoot 'update_dashboard' 'shell.html'
@@ -184,9 +180,6 @@ try {
                 if (Test-Path $shellPath) {
                     $html = Get-Content $shellPath -Raw -Encoding UTF8
                     Send-Html $Context $html
-                } elseif (Test-Path $dashboardPath) {
-                    $html = Get-Content $dashboardPath -Raw -Encoding UTF8
-                    Send-Html $Context $html
                 } else {
                     $buf = [System.Text.Encoding]::UTF8.GetBytes("Dashboard not found. Run check_updates.ps1 or ensure scripts/utility/update_dashboard/shell.html exists.")
                     $context.Response.StatusCode = 404
@@ -239,10 +232,7 @@ try {
                 } else { $context.Response.StatusCode = 404; $context.Response.Close() }
             }
             '^/full$' {
-                if (Test-Path $dashboardPath) {
-                    $html = Get-Content $dashboardPath -Raw -Encoding UTF8
-                    Send-Html $Context $html
-                } elseif (Test-Path $shellPath) {
+                if (Test-Path $shellPath) {
                     $html = Get-Content $shellPath -Raw -Encoding UTF8
                     Send-Html $Context $html
                 } else { $context.Response.StatusCode = 404; $context.Response.Close() }
