@@ -25,21 +25,62 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Path to the compiled Rust CLI binary
 const CLI_BIN = join(__dirname, "..", "..", "target", "release", "space-analyzer-cli.exe");
 
-function runCli(args) {
+/**
+ * Flatten history records by parsing JSON-encoded string fields into proper objects.
+ * The Rust CLI stores some fields as JSON strings in the database; this converts
+ * them back to structured objects so AI clients don't have to double-parse.
+ */
+function flattenHistoryRecord(record) {
+  const flattenFields = [
+    "category_reclaimable",
+    "category_sizes",
+    "extension_sizes",
+    "file_types",
+    "largest_files",
+    "top_directories",
+    "reclaim_tier_sizes",
+  ];
+  const flattened = { ...record };
+  for (const field of flattenFields) {
+    const jsonKey = `${field}_json`;
+    if (typeof flattened[jsonKey] === "string") {
+      try {
+        flattened[field] = JSON.parse(flattened[jsonKey]);
+      } catch {
+        flattened[field] = flattened[jsonKey];
+      }
+      delete flattened[jsonKey];
+    }
+  }
+  return flattened;
+}
+
+function runCli(args, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     const child = spawn(CLI_BIN, args, { windowsHide: true });
     let stdout = "";
     let stderr = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+      reject(new Error(`CLI timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
     child.stdout.on("data", (d) => (stdout += d.toString()));
     child.stderr.on("data", (d) => (stderr += d.toString()));
     child.on("close", (code) => {
+      clearTimeout(timer);
+      if (timedOut) return;
       if (code !== 0 && !stdout) {
         reject(new Error(`CLI exited ${code}: ${stderr.trim()}`));
       } else {
         resolve(stdout.trim());
       }
     });
-    child.on("error", reject);
+    child.on("error", (e) => {
+      clearTimeout(timer);
+      reject(e);
+    });
   });
 }
 
@@ -53,7 +94,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "space_scan",
       description:
-        "Scan a directory and return file count, total size, largest files, top directories, and reclaim estimate. Use include-hidden for system files and deep for full recursion.",
+        "Scan a directory and return file/directory stats. Use include-hidden for system files and deep for full recursion.",
       inputSchema: {
         type: "object",
         properties: {
@@ -62,6 +103,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           include_hidden: { type: "boolean", default: false },
           deep: { type: "boolean", default: true },
           top: { type: "number", default: 20, description: "Max entries for top directories/largest files" },
+          timeout_ms: { type: "number", default: 60000, description: "Timeout in milliseconds (default 60000)" },
         },
         required: ["path"],
       },
@@ -118,6 +160,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     let result;
     switch (name) {
       case "space_scan":
+        if (!args.path || typeof args.path !== "string") {
+          throw new Error("Missing required argument: path (string)");
+        }
         result = await runCli([
           "scan",
           "--path",
@@ -128,7 +173,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           ...(args.deep === undefined || args.deep ? ["--deep"] : ["--shallow"]),
           "--top",
           String(args.top || 20),
-        ]);
+        ], args.timeout_ms || 60000);
         break;
       case "space_disk_info":
         result = await runCli([
@@ -140,8 +185,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       case "space_history":
         result = await runCli([
           "history",
-          "--format",
-          args.format || "json",
+          "--format", args.format || "json",
           ...(args.id ? ["--id", String(args.id)] : []),
           ...(args.trend ? ["--trend"] : []),
           "--sort-by",
@@ -149,15 +193,32 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           "--limit",
           String(args.limit || 20),
         ]);
+        // Flatten JSON-in-JSON fields for easier AI consumption
+        if ((args.format || "json") === "json" && result) {
+          try {
+            const parsed = JSON.parse(result);
+            if (Array.isArray(parsed.records)) {
+              parsed.records = parsed.records.map(flattenHistoryRecord);
+            } else if (parsed.records && typeof parsed.records === "object") {
+              parsed.records = [flattenHistoryRecord(parsed.records)];
+            }
+            result = JSON.stringify(parsed);
+          } catch {
+            // If parsing fails, return raw result
+          }
+        }
         break;
       case "space_dedup":
+        if (!args.path || typeof args.path !== "string") {
+          throw new Error("Missing required argument: path (string)");
+        }
         result = await runCli([
           "dedup",
           "--path",
           args.path,
           "--format",
           args.format || "json",
-        ]);
+        ], 120000);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);
