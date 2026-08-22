@@ -60,7 +60,7 @@ pub fn allocated_size(metadata: &std::fs::Metadata, path: &std::path::Path) -> u
 }
 
 #[cfg(windows)]
-extern "system" {
+unsafe extern "system" {
     fn GetCompressedFileSizeW(lpFileName: *const u16, lpFileSizeHigh: *mut u32) -> u32;
 }
 

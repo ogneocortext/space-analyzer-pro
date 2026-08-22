@@ -21,18 +21,19 @@ impl GpuInfo {
     pub fn detect() -> Self {
         #[cfg(feature = "cuda")]
         {
-            use cudarc::driver::CudaDevice;
+            use cudarc::driver::CudaContext;
 
-            match CudaDevice::new(0) {
+            match CudaContext::new(0) {
                 Ok(device) => {
-                    let props = device.properties();
-                    let total_mem = device.primary_ctx().total_mem();
-                    let total_mem_mb = total_mem / (1024 * 1024);
+                    let name = device.name().unwrap_or_default();
+                    let total_mem = device.total_mem().unwrap_or(0);
+                    let (major, minor) = device.compute_capability().unwrap_or((0, 0));
+                    let total_mem_mb = (total_mem / (1024 * 1024)) as u64;
 
                     Self {
                         available: true,
-                        device_name: props.name.clone(),
-                        compute_capability: format!("{}.{}", props.major, props.minor),
+                        device_name: name,
+                        compute_capability: format!("{major}.{minor}"),
                         total_memory_mb: total_mem_mb,
                         cuda_version: "12.0+".to_string(),
                         device_count: 1,
@@ -83,8 +84,8 @@ impl GpuInfo {
         *GPU_AVAILABLE.get_or_init(|| {
             #[cfg(feature = "cuda")]
             {
-                use cudarc::driver::CudaDevice;
-                CudaDevice::new(0).is_ok()
+                use cudarc::driver::CudaContext;
+                CudaContext::new(0).is_ok()
             }
             #[cfg(not(feature = "cuda"))]
             {
@@ -98,6 +99,7 @@ impl GpuInfo {
     }
 }
 
+#[cfg(not(feature = "cuda"))]
 fn get_cuda_version() -> String {
     if let Ok(output) = std::process::Command::new("nvidia-smi")
         .args(["--version"])

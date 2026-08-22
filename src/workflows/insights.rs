@@ -29,7 +29,7 @@ impl StorageInsights {
         }
 
         // Check for dominance of specific file types
-        if let Some((ext, count)) = scan_result.file_types.iter().max_by_key(|(_, &c)| c) {
+        if let Some((ext, count)) = scan_result.file_types.iter().max_by_key(|entry| entry.1) {
             if scan_result.total_files == 0 {
                 return recommendations;
             }

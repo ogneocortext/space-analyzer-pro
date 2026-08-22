@@ -1,7 +1,7 @@
 [package]
 name = "gpu-compute"
 version = "1.0.0"
-edition = "2021"
+edition = "2024"
 description = "GPU-accelerated compute primitives for Space Analyzer"
 
 [lib]
@@ -17,11 +17,11 @@ rayon = { workspace = true }
 blake3 = { workspace = true }
 
 # CUDA bindings
-cudarc = { version = "0.12", features = ["std"], optional = true }
+cudarc = { version = "0.19", features = ["cuda-12040"], optional = true }
 
 # Fallback CPU implementations
-ndarray = { version = "0.16", features = ["rayon"] }
-rand = "0.9"
+ndarray = { version = "0.17", features = ["rayon"] }
+rand = "0.10"
 
 [features]
 default = []

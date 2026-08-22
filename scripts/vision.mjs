@@ -21,14 +21,15 @@
 // Flags: --prompt, --mode ui|responsive|regression|compare|winui, --persona
 //   <name|all>, --viewport WxH,
 //   --label "text", --context "text", --lines (number code context), --low (640px),
-//   --high (1280px), --max-dim N, --quality N, --raw (no auto metadata), --json
+//   --high (1280px), --max-dim N, --quality N, --raw (no auto metadata), --json,
+//   --no-stream (print the full response once at the end instead of token-by-token)
 //   (--mode winui uses a professional frontend-engineer persona targeting 2025-2026
 //   WinUI 3 / Fluent 2 desktop design standards; best for Space Analyzer Pro audit.
 //   --persona general|accessibility|design_systems|data_viz|interaction|winui|all
 //   runs a narrow specialist lens; --persona all runs ALL lenses on the same image
 //   and appends a cross-persona consensus note — best for weak models like gemma4:e2b.)
 import { readFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, writeSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -128,6 +129,7 @@ function parseArgs(argv) {
     lines: false,
     raw: false,
     json: false,
+    noStream: false,
     maxDim: DEFAULT_MAX_DIM,
     quality: DEFAULT_QUALITY,
   };
@@ -148,6 +150,7 @@ function parseArgs(argv) {
     else if (a === '--raw') opts.raw = true;
     else if (a === '--persona') opts.persona = argv[++i];
     else if (a === '--json') opts.json = true;
+    else if (a === '--no-stream') opts.noStream = true;
     else if (IMAGE_EXT.test(a)) images.push(a);
     else if (CODE_EXT.test(a)) codeFiles.push(a);
     else if (!a.startsWith('--')) {
@@ -227,7 +230,12 @@ function buildMetadata(opts, images, codeFiles, dims) {
   return lines.join('\n');
 }
 
-async function callOllama(prompt, payloadImages, attempt = 1) {
+// Stream tokens from Ollama's /api/generate. Returns the full response text while
+// invoking `onToken(text)` for every chunk so the caller can render it live.
+// In non-streaming mode (e.g. --json), onToken is not called and the full text is
+// returned once at the end.
+async function callOllama(prompt, payloadImages, onToken = null) {
+  const useStream = typeof onToken === 'function';
   const res = await fetch(`${OLLAMA_URL}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -235,7 +243,7 @@ async function callOllama(prompt, payloadImages, attempt = 1) {
       model: MODEL,
       prompt,
       images: payloadImages,
-      stream: false,
+      stream: useStream,
       keep_alive: process.env.VISION_KEEP_ALIVE || '5m',
     }),
   });
@@ -243,12 +251,61 @@ async function callOllama(prompt, payloadImages, attempt = 1) {
     console.error(`[vision] Ollama error ${res.status}: ${await res.text()}`);
     process.exit(1);
   }
-  const j = await res.json();
-  let text = (j.response || '').trim();
-  // Small models occasionally return an empty/garbage token on the first try.
-  if ((text.length < 5 || text === '(no response)') && attempt === 1) {
+
+  // Non-streaming: single JSON object, return it verbatim.
+  if (!useStream) {
+    const j = await res.json();
+    return (j.response || '').trim();
+  }
+
+  // Streaming: NDJSON, one JSON object per line. Read incrementally and flush each
+  // token to the caller as it arrives so the user sees generation happen live.
+  // A lightweight prefill indicator keeps stderr active during the model's warm-up
+  // (small models can sit silently for several seconds before the first token).
+  process.stderr.write('▷ generating');
+  const spinner = setInterval(() => process.stderr.write('.'), 400);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let full = '';
+  let firstTokenAt = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      try {
+        const j = JSON.parse(line);
+        if (j.response) {
+          if (!firstTokenAt) { firstTokenAt = Date.now(); clearInterval(spinner); process.stderr.write(' done\n'); }
+          full += j.response;
+          onToken(j.response);
+        }
+      } catch { /* ignore partial frame */ }
+    }
+  }
+  clearInterval(spinner);
+  const tail = buffer.trim();
+  if (tail) {
+    try {
+      const j = JSON.parse(tail);
+      if (j.response) { full += j.response; if (!firstTokenAt) process.stderr.write(' done\n'); onToken(j.response); }
+    } catch { /* ignore */ }
+  }
+  return full.trim();
+}
+
+// Small models occasionally return an empty/garbage token on the first try. Retry
+// once with a nudge, preserving the same streaming callback.
+async function callOllamaWithRetry(prompt, payloadImages, onToken = null) {
+  let text = await callOllama(prompt, payloadImages, onToken);
+  if ((text.length < 5 || text === '(no response)')) {
     console.error('[vision] empty/short response on first pass — retrying once with a nudge');
-    return callOllama(prompt + '\n\n(Respond with a concrete, detailed analysis now.)', payloadImages, 2);
+    text = await callOllama(prompt + '\n\n(Respond with a concrete, detailed analysis now.)', payloadImages, onToken);
   }
   return text;
 }
@@ -256,7 +313,7 @@ async function callOllama(prompt, payloadImages, attempt = 1) {
 async function analyze(argv) {
   const { opts, images, codeFiles } = parseArgs(argv);
   if (!images.length) {
-    console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare|winui] [--persona <name|all>] [--viewport WxH] [--label "x"] [--context "x"] [--lines] [--low|--high]');
+    console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare|winui] [--persona <name|all>] [--viewport WxH] [--label "x"] [--context "x"] [--lines] [--low|--high] [--json] [--no-stream]');
     process.exit(1);
   }
 
@@ -278,13 +335,18 @@ async function analyze(argv) {
 
   // --persona all: run every specialist lens on the SAME image(s), then a
   // cross-persona consensus note. Issues flagged by >1 lens are the reliable ones.
+  console.error(`[vision] model=${MODEL} mode=${opts.mode} persona=${opts.persona || '(none)'} images=${images.length} code=${codeFiles.length} maxDim=${opts.maxDim} q=${opts.quality} ${opts.json ? '(json)' : (opts.noStream ? '(buffered)' : '(streaming)')}`);
+
   if (opts.persona === 'all') {
     const results = [];
     for (const key of PERSONA_ORDER) {
       const lens = PERSONA_PROMPTS[key] + "\n\n" + PERSONA_GUARDRAIL;
       const finalPrompt = lens + meta + codeBlock;
-      console.error(`[vision] model=${MODEL} persona=${key} images=${images.length}`);
-      const text = await callOllama(finalPrompt, payloadImages);
+      const streamOut = !opts.json && !opts.noStream;
+      console.error(`[vision] ▶ lens ${key} (${PERSONA_NAMES[key]}) — streaming…`);
+      if (!opts.json) writeSync(1, `\n### Persona: ${PERSONA_NAMES[key]} (${key})\n\n`);
+      const text = await callOllamaWithRetry(finalPrompt, payloadImages, streamOut ? (t) => writeSync(1, t) : null);
+      if (!opts.json) writeSync(1, '\n');
       results.push({ persona: key, name: PERSONA_NAMES[key] || key, analysis: text });
     }
     if (opts.json) {
@@ -294,10 +356,7 @@ async function analyze(argv) {
         codeFiles, analyses: results,
       }, null, 2));
     } else {
-      for (const r of results) {
-        console.log(`### Persona: ${r.name} (${r.persona})\n\n${r.analysis}\n`);
-      }
-      console.log("### Cross-persona consensus\n\nThe issues most worth acting on are those flagged by MORE THAN ONE lens above — treat them as high-confidence. Single-lens nits are lower priority. Consolidate duplicates across sections into one fix each.\n");
+      writeSync(1, "### Cross-persona consensus\n\nThe issues most worth acting on are those flagged by MORE THAN ONE lens above — treat them as high-confidence. Single-lens nits are lower priority. Consolidate duplicates across sections into one fix each.\n");
     }
     return;
   }
@@ -312,10 +371,13 @@ async function analyze(argv) {
       : (MODE_PROMPTS[opts.mode] || MODE_PROMPTS.ui);
   const finalPrompt = lens + meta + codeBlock;
 
-  console.error(`[vision] model=${MODEL} mode=${opts.mode} persona=${opts.persona || "(none)"} images=${images.length} codeFiles=${codeFiles.length} maxDim=${opts.maxDim} q=${opts.quality}`);
-  const text = await callOllama(finalPrompt, payloadImages);
-
-  if (opts.json) {
+  const streamOut = !opts.json && !opts.noStream;
+  const subject = opts.label ? ` "${opts.label}"` : '';
+  console.error(`[vision] ▶ analyzing${subject} — ${streamOut ? 'streaming tokens live' : 'collecting full response'}…`);
+  const text = await callOllamaWithRetry(finalPrompt, payloadImages, streamOut ? (t) => writeSync(1, t) : null);
+  if (streamOut) {
+    writeSync(1, '\n');
+  } else if (opts.json) {
     console.log(JSON.stringify({
       model: MODEL,
       mode: opts.mode,
@@ -335,6 +397,6 @@ const cmd = process.argv[2];
 if (cmd === 'analyze') {
   await analyze(process.argv.slice(3));
 } else {
-  console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare|winui] [--persona <name|all>]');
+  console.error('Usage: node scripts/vision.mjs analyze <img1> [img2...] [code.js...] ["prompt" | --prompt "prompt"] [--mode ui|responsive|regression|compare|winui] [--persona <name|all>] [--json] [--no-stream]');
   process.exit(1);
 }

@@ -1,7 +1,7 @@
 [package]
 name = "file-deduplicator"
 version = "1.0.0"
-edition = "2021"
+edition = "2024"
 authors = ["Space Analyzer Team"]
 description = "High-performance file deduplicator with BLAKE3 hashing and hard link support"
 license = "MIT"

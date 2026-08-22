@@ -80,7 +80,7 @@ impl GpuAcceleratedML {
         #[cfg(feature = "cuda")]
         {
             use std::time::Instant;
-            let start = Instant::now();
+            let _start = Instant::now();
             // GPU-accelerated matrix operations would go here
             // Using cudarc to transfer matrices to GPU and perform batch operations
             // For now, fall back to CPU with GPU detection
@@ -322,7 +322,7 @@ fn solve_linear_system(a: &Array2<f64>, b: &Array2<f64>) -> Result<Vec<f64>, Str
 }
 
 fn init_centroids_kpp(data: &Array2<f64>, k: usize) -> Array2<f64> {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
 
     let n = data.nrows();

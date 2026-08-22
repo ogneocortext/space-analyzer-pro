@@ -84,8 +84,6 @@ impl BatchHasher {
     fn hash_files_gpu(&self, paths: &[PathBuf]) -> Vec<HashResult> {
         #[cfg(feature = "cuda")]
         {
-            use cudarc::driver::CudaDevice;
-
             // Read all file data into batches
             let mut results = Vec::with_capacity(paths.len());
 
@@ -131,10 +129,9 @@ impl BatchHasher {
 
     #[cfg(feature = "cuda")]
     fn hash_batch_on_gpu(batch: &[(PathBuf, Vec<u8>)]) -> Result<Vec<HashResult>> {
-        use cudarc::driver::{CudaDevice, LaunchAsync, LaunchConfig};
-        use cudarc::nvrtc::Ptx;
+            use cudarc::driver::CudaContext;
 
-        let dev = CudaDevice::new(0)?;
+            let _dev = CudaContext::new(0)?;
 
         // BLAKE3 CUDA kernel (simplified parallel hash kernel)
         // In production, this would load a pre-compiled .ptx file

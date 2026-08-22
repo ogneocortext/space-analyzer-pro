@@ -111,6 +111,8 @@ fn scan_result_from_shared_converts_fields() {
         subdirectories: vec![],
         scanned_files: HashMap::new(),
         category_sizes: HashMap::new(),
+        reclaim_tier_sizes: HashMap::new(),
+        category_reclaimable: HashMap::new(),
     };
     say!(
         "   Input: {} files, {} dirs, {} bytes",

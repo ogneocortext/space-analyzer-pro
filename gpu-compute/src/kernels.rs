@@ -1,4 +1,5 @@
-use cudarc::driver::{CudaDevice, CudaFunction, DriverError};
+use anyhow::{Context, Result};
+use cudarc::driver::{CudaContext, CudaFunction};
 use cudarc::nvrtc::Ptx;
 use std::sync::OnceLock;
 
@@ -26,19 +27,23 @@ fn load_ptx_files() -> &'static Vec<(String, Vec<u8>)> {
 }
 
 pub fn get_kernel(
-    device: &CudaDevice,
+    device: &CudaContext,
     ptx_name: &str,
     kernel_name: &str,
-) -> Result<CudaFunction, DriverError> {
+) -> Result<CudaFunction> {
     let ptx_files = load_ptx_files();
-    let key = format!("{}_{}", ptx_name, kernel_name);
 
     for (name, ptx_data) in ptx_files.iter() {
         if name.as_str() == ptx_name {
-            let ptx = Ptx::from_src(std::str::from_utf8(ptx_data).unwrap_or(""))?;
-            return device.get_func(&ptx, kernel_name);
+            let ptx = Ptx::from_src(std::str::from_utf8(ptx_data).unwrap_or(""));
+            let module = device
+                .load_module(ptx)
+                .with_context(|| format!("failed to load PTX module {name}"))?;
+            return module
+                .load_function(kernel_name)
+                .with_context(|| format!("kernel {kernel_name} not found in module {name}"));
         }
     }
 
-    Err(DriverError::Unknown("PTX file not found".to_string()))
+    anyhow::bail!("PTX file {ptx_name} not found")
 }

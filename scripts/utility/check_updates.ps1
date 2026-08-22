@@ -399,15 +399,18 @@ function Get-UpdateCommand {
     param([string]$Method, [string]$Name, [string]$ProjectPath, [string]$Available)
     switch ($Method) {
         'npm' {
-            $pkgDir = Split-Path $ProjectPath -ErrorAction SilentlyContinue
-            if ($pkgDir) { return "cd `"$pkgDir`" && npm install $Name@$Available" }
-            return "npm install $Name@$Available"
+            $cd = if ($ProjectPath) { "cd `"$ProjectPath`" && " } else { "" }
+            $cd = $cd.TrimEnd()
+            if ($Available) { return "$cd npm install $Name@$Available" }
+            return "$cd npm install $Name"
         }
         'pip' {
-            return "pip install --upgrade $Name==$Available"
+            if ($Available) { return "pip install --upgrade $Name==$Available" }
+            return "pip install --upgrade $Name"
         }
         'cargo' {
-            return "cargo update -p $Name --precise $Available"
+            if ($Available) { return "cargo update -p $Name --precise $Available" }
+            return "cargo update -p $Name"
         }
         'winget' {
             return "winget upgrade --id $Name --force"

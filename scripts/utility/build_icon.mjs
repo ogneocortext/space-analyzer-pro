@@ -3,25 +3,25 @@
 // PNG-encoded .ico (no external tooling required). Run from repo root:
 //   node scripts/utility/build_icon.mjs
 import sharp from "sharp";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const iconDir = join(here, "..", "..", "assets", "icon");
-const svg = readFileSync(join(iconDir, "logo.svg"));
+const svg = await readFile(join(iconDir, "logo.svg"));
 
 const sizes = [16, 32, 48, 64, 128, 256];
 const png = {};
 for (const s of sizes) {
   const buf = await sharp(svg).resize(s, s).png().toBuffer();
   png[s] = buf;
-  writeFileSync(join(iconDir, `icon-${s}.png`), buf);
+  await writeFile(join(iconDir, `icon-${s}.png`), buf);
   console.log(`wrote icon-${s}.png`);
 }
 
 const master = await sharp(svg).resize(512, 512).png().toBuffer();
-writeFileSync(join(iconDir, "logo-512.png"), master);
+await writeFile(join(iconDir, "logo-512.png"), master);
 console.log("wrote logo-512.png");
 
 // Assemble a PNG-encoded ICO from the rendered sizes.
@@ -53,5 +53,5 @@ for (const s of sizes) {
   data = Buffer.concat([data, png[s]]);
   offset += png[s].length;
 }
-writeFileSync(join(iconDir, "app-icon.ico"), Buffer.concat([header, entries, data]));
+await writeFile(join(iconDir, "app-icon.ico"), Buffer.concat([header, entries, data]));
 console.log("wrote app-icon.ico");

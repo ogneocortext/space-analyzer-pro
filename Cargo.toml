@@ -3,7 +3,7 @@ name = "space-analyzer"
 version = "4.2.0"
 description = "Self-Contained AI-Powered Space Analyzer Desktop Application"
 authors = ["Space Analyzer Team"]
-edition = "2021"
+edition = "2024"
 
 [workspace]
 members = [
@@ -69,7 +69,7 @@ trash = "5"
 
 # Data processing
 regex = { workspace = true }
-base64 = "0.22"
+base64 = "0.23"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 sha2 = "0.11"
 blake3 = { workspace = true }
@@ -78,11 +78,11 @@ rayon = { workspace = true }
 # Compression and archives
 flate2 = "1.1"
 tar = "0.4"
-zip = "2"
+zip = "8"
 
 # Configuration
 config = "0.15"
-toml = "0.8"
+toml = "1"
 clap = { version = "4.6", features = ["derive"] }
 
 # Progress and UI
@@ -108,8 +108,8 @@ futures = "0.3"
 
 # Web server
 axum = { version = "0.8", features = ["json", "macros"] }
-tokio-tungstenite = "0.21"
-tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
+tokio-tungstenite = "0.30"
+tower-http = { version = "0.7", features = ["cors", "fs", "trace"] }
 rust-embed = "8"
 mime_guess = "2"
 

@@ -206,7 +206,7 @@ pub fn print_text_results(
         );
         hprintln!("   {:<18} {:>11} {:>8}", "Category", "Size", "% Total");
         hprintln!("   {} {} {}", "─".repeat(18), "─".repeat(11), "─".repeat(8));
-        for (&cat, &size) in sorted.iter().take(top_n) {
+        for (cat, size) in sorted.iter().take(top_n).map(|&(c, s)| (*c, *s)) {
             let emoji = match cat {
                 "Windows" => "🖥️",
                 "Program Files" => "⚙️",

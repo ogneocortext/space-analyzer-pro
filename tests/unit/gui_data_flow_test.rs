@@ -146,6 +146,9 @@ fn scan_result_with_many_files_populates_types() {
         empty_dirs: Vec::new(),
         scanned_files: HashMap::new(),
         category_sizes: HashMap::new(),
+        reclaim_tier_sizes: HashMap::new(),
+        category_reclaimable: HashMap::new(),
+        is_index_only: false,
         potential_cleanup_bytes: 0,
         timestamp: String::new(),
     };

@@ -39,6 +39,8 @@ fn scan_result_defaults_are_zeroed() {
         subdirectories: Vec::new(),
         scanned_files: std::collections::HashMap::new(),
         category_sizes: std::collections::HashMap::new(),
+        reclaim_tier_sizes: std::collections::HashMap::new(),
+        category_reclaimable: std::collections::HashMap::new(),
     };
     eprintln!(
         "  total_files={}, total_directories={}, total_size={}",
