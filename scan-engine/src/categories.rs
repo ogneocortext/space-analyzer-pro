@@ -159,6 +159,13 @@ pub fn extension_to_category(ext: &str, path: &str) -> &'static str {
 pub fn classify_reclaimability(ext: &str, path_lower: &str, category: &str) -> ReclaimTier {
     let ext_l = ext.to_lowercase();
 
+    // Keep: never touch VS Code extension directories. Extensions bundle their
+    // own node_modules as dependencies that are NOT reinstallable — deleting
+    // them breaks the extension (see safe-tier reclaim classifier regression).
+    if path_lower.contains(".vscode\\extensions") {
+        return ReclaimTier::Keep;
+    }
+
     // Safe: temp files + caches + build/deps + junk directories.
     if ext_l == "tmp" {
         return ReclaimTier::Safe;
@@ -169,8 +176,6 @@ pub fn classify_reclaimability(ext: &str, path_lower: &str, category: &str) -> R
         || path_lower.contains("__pycache__")
         || path_lower.contains("\\target\\")
         || path_lower.contains("/target/")
-        || path_lower.contains("\\obj\\")
-        || path_lower.contains("\\bin\\")
         || path_lower.contains("appdata\\local\\temp")
         || path_lower.contains("windows\\temp")
         || path_lower.contains("inetcache")
