@@ -362,10 +362,7 @@ mod tests {
         r.file_types.insert("rs".into(), 1);
         r.extension_sizes.insert(String::new(), 10);
         r.file_types.insert(String::new(), 1);
-        r.largest_files.push(LargestFileEntry {
-            path: "C:/tmp/a.rs".into(),
-            size: 20,
-        });
+        r.largest_files.push(LargestFileEntry::new("C:/tmp/a.rs".into(), 20));
         r
     }
 

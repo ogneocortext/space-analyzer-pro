@@ -76,26 +76,11 @@ mod tests {
             duration_secs: 12.5,
             path: "C:\\Users\\test".to_string(),
             largest_files: vec![
-                LargestFileEntry {
-                    path: "C:\\big_file.zip".to_string(),
-                    size: 500_000_000,
-                },
-                LargestFileEntry {
-                    path: "C:\\large_video.mp4".to_string(),
-                    size: 350_000_000,
-                },
-                LargestFileEntry {
-                    path: "C:\\dataset.tar.gz".to_string(),
-                    size: 200_000_000,
-                },
-                LargestFileEntry {
-                    path: "C:\\documents\\report.pdf".to_string(),
-                    size: 15_000_000,
-                },
-                LargestFileEntry {
-                    path: "C:\\images\\photo.jpg".to_string(),
-                    size: 5_000_000,
-                },
+                LargestFileEntry::new("C:\\big_file.zip".to_string(), 500_000_000),
+                LargestFileEntry::new("C:\\large_video.mp4".to_string(), 350_000_000),
+                LargestFileEntry::new("C:\\dataset.tar.gz".to_string(), 200_000_000),
+                LargestFileEntry::new("C:\\documents\\report.pdf".to_string(), 15_000_000),
+                LargestFileEntry::new("C:\\images\\photo.jpg".to_string(), 5_000_000),
             ],
             file_types,
             extension_sizes,

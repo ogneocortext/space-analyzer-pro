@@ -25,6 +25,22 @@ pub struct GuiCli {
 pub struct LargestFileEntry {
     pub path: String,
     pub size: u64,
+    /// Human-readable size (e.g. "6.14 GB"). Always populated on construction so
+    /// every consumer (streaming events, JSON, GUI) gets a readable value without
+    /// reformatting. `#[serde(default)]` keeps it backward compatible with older
+    /// serialized payloads and the C# model, which computes its own display string.
+    #[serde(default)]
+    pub size_human: String,
+}
+
+impl LargestFileEntry {
+    pub fn new(path: String, size: u64) -> Self {
+        Self {
+            size_human: scan_engine::format_bytes(size),
+            path,
+            size,
+        }
+    }
 }
 
 /// Common scan report structure used across all GUI implementations
@@ -141,10 +157,9 @@ impl ScanReport {
         }
 
         for file in &result.largest_files {
-            scan_result.largest_files.push(LargestFileEntry {
-                path: file.path.clone(),
-                size: file.size,
-            });
+            scan_result
+                .largest_files
+                .push(LargestFileEntry::new(file.path.clone(), file.size));
         }
         scan_result.errors = result.errors.clone();
         scan_result.total_dirs = result.total_directories;

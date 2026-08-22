@@ -277,6 +277,7 @@ mod tests {
             .push(space_analyzer_pro_desktop::gui_common::LargestFileEntry {
                 path: r"C:\proj\node_modules\big.js".into(),
                 size: 100,
+                size_human: "100 B".to_string(),
             });
         // Directory totals win; the file list is only a fallback, so the two
         // renderers can never disagree.

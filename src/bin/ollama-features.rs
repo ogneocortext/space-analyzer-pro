@@ -234,26 +234,26 @@ async fn feature_summarize_scan(app: &App) {
         potential_cleanup_bytes: Some(42_000_000_000), // ~39 GB reclaimable
         path: Some("C:\\Users\\me".to_string()),
         top_files: vec![
-            space_analyzer_pro_desktop::gui_common::LargestFileEntry {
-                path: "C:\\Users\\me\\Videos\\birthday_party.mp4".to_string(),
-                size: 28_000_000_000,
-            },
-            space_analyzer_pro_desktop::gui_common::LargestFileEntry {
-                path: "C:\\Users\\me\\.cache\\docker\\image.tar".to_string(),
-                size: 12_500_000_000,
-            },
-            space_analyzer_pro_desktop::gui_common::LargestFileEntry {
-                path: "C:\\Users\\me\\Downloads\\installer_v3.exe".to_string(),
-                size: 1_800_000_000,
-            },
-            space_analyzer_pro_desktop::gui_common::LargestFileEntry {
-                path: "C:\\Program Files\\SomeApp\\app.exe".to_string(),
-                size: 850_000_000,
-            },
-            space_analyzer_pro_desktop::gui_common::LargestFileEntry {
-                path: "C:\\Users\\me\\Documents\\taxes_2024.pdf".to_string(),
-                size: 12_000_000,
-            },
+            space_analyzer_pro_desktop::gui_common::LargestFileEntry::new(
+                "C:\\Users\\me\\Videos\\birthday_party.mp4".to_string(),
+                28_000_000_000,
+            ),
+            space_analyzer_pro_desktop::gui_common::LargestFileEntry::new(
+                "C:\\Users\\me\\.cache\\docker\\image.tar".to_string(),
+                12_500_000_000,
+            ),
+            space_analyzer_pro_desktop::gui_common::LargestFileEntry::new(
+                "C:\\Users\\me\\Downloads\\installer_v3.exe".to_string(),
+                1_800_000_000,
+            ),
+            space_analyzer_pro_desktop::gui_common::LargestFileEntry::new(
+                "C:\\Program Files\\SomeApp\\app.exe".to_string(),
+                850_000_000,
+            ),
+            space_analyzer_pro_desktop::gui_common::LargestFileEntry::new(
+                "C:\\Users\\me\\Documents\\taxes_2024.pdf".to_string(),
+                12_000_000,
+            ),
         ],
         file_types: vec![
             ("mp4".to_string(), 180_000_000_000),

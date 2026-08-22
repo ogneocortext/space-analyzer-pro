@@ -433,6 +433,7 @@ mod tests {
             top_files: vec![gui_common::LargestFileEntry {
                 path: "C:/big.bin".to_string(),
                 size: 500_000_000,
+                size_human: "500 MB".to_string(),
             }],
             file_types: vec![("bin".to_string(), 600_000_000)],
         };

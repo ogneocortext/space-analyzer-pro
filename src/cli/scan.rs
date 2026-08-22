@@ -331,10 +331,7 @@ pub fn scan_directory(
         .largest_files
         .iter()
         .take(top_n)
-        .map(|file| LargestFileEntry {
-            path: file.path.clone(),
-            size: file.size,
-        })
+        .map(|file| LargestFileEntry::new(file.path.clone(), file.size))
         .collect();
 
     result.empty_dirs = shared_result.empty_directories;
@@ -393,10 +390,7 @@ pub fn scan_directory(
                     .largest_files
                     .iter()
                     .take(SAVE_HISTORY_TOP_N)
-                    .map(|file| LargestFileEntry {
-                        path: file.path.clone(),
-                        size: file.size,
-                    })
+                    .map(|file| LargestFileEntry::new(file.path.clone(), file.size))
                     .collect();
             }
             if history_report.top_directories.len() < SAVE_HISTORY_TOP_N
@@ -447,10 +441,7 @@ fn drill_directory(path: &str) -> (Vec<DirEntry>, Vec<LargestFileEntry>) {
             .unwrap_or_default();
         if meta.is_file() {
             if meta.len() > 0 {
-                largest.push(LargestFileEntry {
-                    path: path_str,
-                    size: meta.len(),
-                });
+                largest.push(LargestFileEntry::new(path_str, meta.len()));
             }
         } else if meta.is_dir() {
             let (size, file_count, dir_count) = dir_size(&child_path);

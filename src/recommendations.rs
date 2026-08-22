@@ -105,12 +105,13 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
         }
     }
 
+    // Use the category aggregate (accurate total) rather than summing the
+    // top-N largest_files, which undershoots when the file cap excludes blobs.
     let ollama_size: u64 = result
-        .largest_files
-        .iter()
-        .filter(|file| file.path.to_lowercase().contains("ollama"))
-        .map(|file| file.size)
-        .sum();
+        .category_sizes
+        .get("AI Models")
+        .copied()
+        .unwrap_or(0);
     if ollama_size > 1024 * 1024 * 1024 {
         recs.push((
             2,
