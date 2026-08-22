@@ -157,6 +157,12 @@ pub enum Commands {
         #[arg(long)]
         include_hidden: bool,
 
+        /// Follow NTFS junctions and directory symlinks during traversal.
+        /// Off by default: Windows junctions (e.g. `C:\Users\All Users` →
+        /// `C:\ProgramData`) can lead outside the target tree and inflate counts.
+        #[arg(long)]
+        follow_symlinks: bool,
+
         /// Number of parallel threads for directory traversal (0 = auto)
         #[arg(long, default_value = "0")]
         threads: usize,
@@ -207,6 +213,14 @@ pub enum Commands {
         #[arg(long, conflicts_with = "stream")]
         progress_json: bool,
 
+        /// Append machine-readable progress events (one JSON object per line) to
+        /// this file while the scan runs. Independent of `--progress-json`
+        /// (stderr) so a GUI or log watcher can follow along without consuming
+        /// stderr or the final JSON result on stdout. Each line is a progress
+        /// snapshot; the final line is `{"type":"complete",...}`.
+        #[arg(long, value_name = "FILE")]
+        progress_log: Option<String>,
+
         /// Include the full per-file list (`scanned_files`) in machine-readable
         /// output. Off by default: for large trees that map can exceed the size of
         /// every other field combined, so the summary (top directories, category
@@ -214,6 +228,12 @@ pub enum Commands {
         /// on only when you need every individual path.
         #[arg(long)]
         files: bool,
+
+        /// For the top N largest directories, also break down their immediate child
+        /// subdirectories and largest files so you can see what is consuming space
+        /// without drilling in manually. 0 disables (default).
+        #[arg(long, value_name = "N", default_value = "0")]
+        drill: usize,
 
         /// Write a JSON-lines step log of the scan to this file. Each line records a
         /// step (`start`, `enter_dir`, `error`, `progress`, `complete`) so that every

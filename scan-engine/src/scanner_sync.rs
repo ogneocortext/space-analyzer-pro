@@ -123,7 +123,6 @@ impl FileScanner {
             total_size: 0,
             file_types: HashMap::new(),
             extension_sizes: HashMap::new(),
-            size_distribution: HashMap::new(),
             largest_files: Vec::new(),
             empty_directories: Vec::new(),
             errors: Vec::new(),
@@ -309,7 +308,7 @@ impl FileScanner {
             // Report progress to a host process periodically (every 8192 files so a
             // large subtree doesn't flood the progress channel). The callback decides
             // what to do with it (e.g. emit a `__PROGRESS__` line for the GUI).
-            if files_scanned % 8192 == 0 {
+            if files_scanned.is_multiple_of(8192) {
                 if let Some(report) = progress {
                     report(files_scanned);
                 }
@@ -399,7 +398,6 @@ impl FileScanner {
         result.total_size = gpu_result.total_size;
         result.file_types = gpu_result.file_types;
         result.extension_sizes = gpu_result.extension_sizes;
-        result.size_distribution = gpu_result.size_distribution;
         result.empty_directories = true_empty_dirs;
         result.subdirectories = gpu_result
             .subdirectories

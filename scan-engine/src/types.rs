@@ -22,7 +22,6 @@ pub struct ScanProgress {
     pub total_size: u64,
     pub current_file: String,
     pub percentage: f32,
-    pub completed: bool,
     pub live_files: Vec<FileInfo>,
     pub file_type_counts: HashMap<String, u64>,
     pub extension_sizes: HashMap<String, u64>,
@@ -37,7 +36,6 @@ pub struct ScanResult {
     pub total_size: u64,
     pub file_types: HashMap<String, u64>,
     pub extension_sizes: HashMap<String, u64>,
-    pub size_distribution: HashMap<String, u64>,
     pub largest_files: Vec<FileInfo>,
     pub empty_directories: Vec<String>,
     pub errors: Vec<String>,
@@ -105,9 +103,7 @@ pub struct ScanOptions {
     pub max_size: Option<u64>,
     pub include_hidden: bool,
     pub follow_symlinks: bool,
-    pub size_buckets: bool,
     pub gpu_acceleration: bool,
-    pub cuda_enabled: bool,
     pub num_threads: usize,
     pub top_n: usize,
     pub file_cache: Option<HashMap<String, (u64, i64)>>,
@@ -121,9 +117,7 @@ impl Default for ScanOptions {
             max_size: None,
             include_hidden: false,
             follow_symlinks: false,
-            size_buckets: true,
             gpu_acceleration: true,
-            cuda_enabled: false,
             num_threads: 0,
             top_n: 100,
             file_cache: None,
@@ -175,12 +169,6 @@ impl ScanOptions {
     /// Enable or disable GPU acceleration
     pub fn with_gpu(mut self, enabled: bool) -> Self {
         self.gpu_acceleration = enabled;
-        self
-    }
-
-    /// Enable or disable CUDA-specific kernels
-    pub fn with_cuda(mut self, enabled: bool) -> Self {
-        self.cuda_enabled = enabled;
         self
     }
 }

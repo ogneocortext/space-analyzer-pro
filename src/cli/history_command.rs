@@ -1,6 +1,7 @@
 use crate::cli::args::OutputFormat;
 use scan_engine::format_bytes;
 use space_analyzer_pro_desktop::database::Database;
+use space_analyzer_pro_desktop::database::HistoryPageQuery;
 use std::io::IsTerminal;
 use space_analyzer_pro_desktop::database::ScanHistoryRecord;
 use space_analyzer_pro_desktop::error::AppResult;
@@ -342,15 +343,15 @@ pub fn handle_history(
                 }
             }
         } else {
-            match db.get_scan_history_page(
+            match db.get_scan_history_page(HistoryPageQuery {
                 limit,
                 offset,
-                search.as_deref(),
-                &sort_by,
+                search: search.clone(),
+                sort_by,
                 sort_asc,
                 only_duplicates,
                 include_index_only,
-            ) {
+            }) {
                 Ok((records, total)) => {
                     if output_format == OutputFormat::Text {
                         render_history_page_text(&records, total, limit, offset);
@@ -394,7 +395,7 @@ fn grouped(n: u64) -> String {
     let len = bytes.len();
     let mut out = String::with_capacity(len + len / 3);
     for (i, b) in bytes.iter().enumerate() {
-        if i > 0 && (len - i) % 3 == 0 {
+        if i > 0 && (len - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(*b as char);

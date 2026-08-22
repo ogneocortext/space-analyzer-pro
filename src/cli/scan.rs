@@ -7,11 +7,11 @@ use std::io::IsTerminal;
 use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use super::live_scan::LiveProgress;
-use super::types::{DirEntry, FileInfoStreaming, ScanReport, StreamEvent};
+use super::types::{CompleteEvent, DirDrillDown, DirEntry, FileInfoStreaming, ProgressEvent, ScanReport, StreamEvent};
 use crate::animation;
 
 /// How many of the largest files / top directories to persist in a saved scan
@@ -31,12 +31,15 @@ pub fn scan_directory(
     min_size: Option<u64>,
     max_size: Option<u64>,
     include_hidden: bool,
+    follow_symlinks: bool,
     threads: usize,
     no_gpu: bool,
     cache: bool,
     stream: bool,
     progress_json: bool,
+    progress_log: Option<String>,
     include_files: bool,
+    drill: usize,
     top_n: usize,
     save_history: bool,
     log_path: Option<String>,
@@ -118,6 +121,7 @@ pub fn scan_directory(
         min_size,
         max_size,
         include_hidden,
+        follow_symlinks,
         num_threads: threads,
         top_n,
         file_cache,
@@ -137,12 +141,30 @@ pub fn scan_directory(
         }
     }
 
+    // Open the optional machine-readable progress log. Independent of stderr so a
+    // GUI or log watcher can follow structured progress events while the terminal
+    // keeps the human-readable live view. Each line is one JSON object. Wrapped in
+    // Arc<Mutex<>> so the Clone + Send scanner callback can append to it.
+    let progress_log_writer: Arc<Mutex<Option<Box<dyn std::io::Write + Send>>>> =
+        Arc::new(Mutex::new(None));
+    if let Some(pl_path) = &progress_log {
+        match std::fs::File::create(pl_path) {
+            Ok(file) => *progress_log_writer.lock().unwrap() = Some(Box::new(file)),
+            Err(e) => {
+                eprintln!("⚠️ Could not open progress-log file '{}': {}", pl_path, e)
+            }
+        }
+    }
+    let progress_log_for_cb = Arc::clone(&progress_log_writer);
+
     let shared_result = scanner.scan_with_progress_sync(
         path_str,
         options,
         move |progress: ScanProgress| {
+            // Snapshot fields the downstream arms may move, before any move.
+            let current_file = progress.current_file.clone();
             if stream {
-                let event = StreamEvent::Progress {
+                let event = StreamEvent::Progress(Box::new(ProgressEvent {
                     files_scanned: progress.files_scanned,
                     directories_scanned: progress.directories_scanned,
                     total_size: progress.total_size,
@@ -161,7 +183,7 @@ pub fn scan_directory(
                     file_types: progress.file_type_counts,
                     extension_sizes: progress.extension_sizes,
                     category_sizes: progress.category_sizes,
-                };
+                }));
                 let line = serde_json::to_string(&event).unwrap_or_default();
                 println!("{}", line);
                 let _ = std::io::stdout().flush();
@@ -174,6 +196,22 @@ pub fn scan_directory(
             } else {
                 // Interactive live view (stderr terminal, not a machine mode).
                 live_for_cb.render(&progress);
+            }
+            // Machine-readable progress log (optional, file-based).
+            if let Ok(mut log) = progress_log_for_cb.lock() {
+                if let Some(log) = log.as_mut() {
+                    let event = serde_json::json!({
+                        "type": "progress",
+                        "files_scanned": progress.files_scanned,
+                        "directories_scanned": progress.directories_scanned,
+                        "total_size": progress.total_size,
+                        "percentage": progress.percentage,
+                        "current_file": current_file,
+                    });
+                    if let Ok(line) = serde_json::to_string(&event) {
+                        let _ = writeln!(log, "{line}");
+                    }
+                }
             }
         },
         &cancel_flag,
@@ -204,6 +242,22 @@ pub fn scan_directory(
     }
     // Clear the live frame so the final report starts on a clean line.
     live.finish();
+
+    // Final progress-log line so a watcher knows the run is done.
+    if let Ok(mut log) = progress_log_writer.lock() {
+        if let Some(log) = log.as_mut() {
+            let event = serde_json::json!({
+                "type": "complete",
+                "files_scanned": shared_result.total_files,
+                "total_size": shared_result.total_size,
+                "duration_secs": duration,
+                "error_count": shared_result.errors.len(),
+            });
+            if let Ok(line) = serde_json::to_string(&event) {
+                let _ = writeln!(log, "{line}");
+            }
+        }
+    }
 
     let mut result = ScanReport::new();
     result.total_files = shared_result.total_files as usize;
@@ -257,6 +311,21 @@ pub fn scan_directory(
     // consistent with it instead of serializing every subdirectory).
     result.top_directories = top_dirs.iter().take(top_n).cloned().collect();
 
+    // Drill-down: for the top `drill` directories, walk their immediate children
+    // on the filesystem and attach child subdirectory sizes plus the largest files
+    // directly inside each. Consumers can see what is consuming space without
+    // re-scanning the whole tree.
+    if drill > 0 {
+        let mut drill_down = HashMap::new();
+        for dir in result.top_directories.iter().take(drill) {
+            let (children, largest) = drill_directory(&dir.path);
+            if !children.is_empty() || !largest.is_empty() {
+                drill_down.insert(dir.path.clone(), DirDrillDown { children, largest_files: largest });
+            }
+        }
+        result.drill_down = drill_down;
+    }
+
     // Display slice of the largest files is also bounded by `--top`.
     result.largest_files = shared_result
         .largest_files
@@ -278,7 +347,7 @@ pub fn scan_directory(
     result.timestamp = chrono::Utc::now().to_rfc3339();
 
     if stream {
-        let complete = StreamEvent::Complete {
+        let complete = StreamEvent::Complete(Box::new(CompleteEvent {
             total_files: result.total_files,
             total_size_bytes: result.total_size_bytes,
             total_size_mb: result.total_size_mb,
@@ -300,7 +369,8 @@ pub fn scan_directory(
             category_reclaimable: result.category_reclaimable.clone(),
             potential_cleanup_bytes: result.potential_cleanup_bytes,
             timestamp: result.timestamp.clone(),
-        };
+            drill_down: result.drill_down.clone(),
+        }));
         let line = serde_json::to_string(&complete).unwrap_or_default();
         println!("{}", line);
         let _ = std::io::stdout().flush();
@@ -348,4 +418,82 @@ pub fn scan_directory(
     }
 
     Ok(result)
+}
+
+/// Walk the immediate children of `path` and return (child subdirectories sorted
+/// largest-first, largest files directly in `path` sorted largest-first). Used by
+/// `--drill` to show what is consuming space inside a large directory without a
+/// full re-scan. Best-effort: permission errors are skipped silently.
+fn drill_directory(path: &str) -> (Vec<DirEntry>, Vec<LargestFileEntry>) {
+    let mut children: Vec<DirEntry> = Vec::new();
+    let mut largest: Vec<LargestFileEntry> = Vec::new();
+    let entries: Vec<_> = match std::fs::read_dir(path) {
+        Ok(it) => it.flatten().collect(),
+        Err(_) => return (children, largest),
+    };
+    if entries.is_empty() {
+        return (children, largest);
+    }
+    for entry in entries {
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let child_path = entry.path();
+        let path_str = child_path.to_string_lossy().to_string();
+        let name = child_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        if meta.is_file() {
+            if meta.len() > 0 {
+                largest.push(LargestFileEntry {
+                    path: path_str,
+                    size: meta.len(),
+                });
+            }
+        } else if meta.is_dir() {
+            let (size, file_count, dir_count) = dir_size(&child_path);
+            children.push(DirEntry {
+                path: path_str,
+                name,
+                total_size: size,
+                file_count,
+                dir_count,
+            });
+        }
+    }
+    children.sort_by_key(|b| std::cmp::Reverse(b.total_size));
+    children.truncate(50);
+    largest.sort_by_key(|b| std::cmp::Reverse(b.size));
+    largest.truncate(50);
+    (children, largest)
+}
+
+/// Recursive size walk of a directory. Returns (total_bytes, file_count, dir_count).
+fn dir_size(path: &std::path::Path) -> (u64, u64, u64) {
+    let mut total = 0u64;
+    let mut files = 0u64;
+    let mut dirs = 0u64;
+    let mut stack = vec![path.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let entries = match std::fs::read_dir(&current) {
+            Ok(it) => it,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let meta = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if meta.is_file() {
+                total += meta.len();
+                files += 1;
+            } else if meta.is_dir() {
+                dirs += 1;
+                stack.push(entry.path());
+            }
+        }
+    }
+    (total, files, dirs)
 }

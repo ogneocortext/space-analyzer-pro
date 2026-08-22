@@ -151,6 +151,7 @@ fn scan_result_with_many_files_populates_types() {
         is_index_only: false,
         potential_cleanup_bytes: 0,
         timestamp: String::new(),
+        drill_down: HashMap::new(),
     };
     say!(
         "   Files: {} | Types: {:?}",

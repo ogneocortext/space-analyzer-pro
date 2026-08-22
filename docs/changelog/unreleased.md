@@ -39,3 +39,46 @@
 - `cargo test --workspace` ✅ (all crates pass)
 - `cargo build -p win-usn --features napi` ✅
 - `cargo build -p gpu-compute --features cuda` ✅ (links against CUDA 12.4)
+
+## Scanner performance, output schema & drill-down
+
+### Added
+- **`--drill <N>`** CLI flag: for the top N largest directories, walks their
+  immediate children on the filesystem and attaches child subdirectory sizes and
+  largest files inside each (`ScanReport.drill_down: HashMap<String, DirDrillDown>`).
+  Lets a consumer see what is consuming space without re-scanning or manual digging.
+  New types `DirDrillDown { children, largest_files }` in `gui_common.rs`.
+- **`--progress-log <file>`** CLI flag: appends machine-readable progress events
+  (one JSON object per line) to a file while the scan runs. Independent of stderr
+  (live view) and stdout (final JSON), so a GUI or log watcher can tail structured
+  progress. Each line is a progress snapshot; the final line is
+  `{"type":"complete",...}`.
+- **Human-readable size companions** across all output surfaces: `--format json`,
+  `--format jsonl`, and `--format text` now emit `*_human` fields (e.g.
+  `total_size_human`, `size_human`) alongside raw byte counts so results are
+  interpretable without mental arithmetic.
+
+### Changed
+- **JSON output schema unified**: `generate_jsonl` and the curated
+  `generate_json_pretty` now use consistent field names (`total_size` for
+  directories, `size` for files) instead of the old `size_bytes` outlier.
+- **Scan performance**: progress callback throttled to every 5,000 entries (was
+  200), cutting ~25x the per-callback HashMap clones; `live_files` sort moved out
+  of the hot per-file loop into the callback path. Home-directory deep scan dropped
+  ~255s → ~180s (~30% faster).
+- **Rayon thread pool** built once at CLI startup (`scan_command.rs`) instead of
+  per-scan inside the scanner, where `build_global()` would silently fail (ignoring
+  `--threads`) if the pool was already initialized. Warns if `--threads` can't apply.
+- **Partial-scan elevation warning**: when ≥5 permission-denied errors occur the CLI
+  warns to re-run from an elevated (Administrator) terminal.
+
+### Removed
+- Dead `ScanProgress.completed` field (set, never read).
+- Dead `ScanOptions.size_buckets` and `cuda_enabled` fields (scanner never read
+  `cuda_enabled`; `settings.cuda_enabled` is a separate struct).
+- Dead `ScanResult.size_distribution` (populated by gpu-compute, never output).
+- 300-line deprecated async `scan_with_progress` (marked unused; sync path is used).
+
+### Verified
+- `cargo clippy --workspace --all-targets` ✅ (exit 0; zero warnings)
+- `cargo test --workspace` ✅ (all crates pass)

@@ -36,7 +36,6 @@ fn scan_result_defaults_are_zeroed() {
         total_size: 0,
         file_types: std::collections::HashMap::new(),
         extension_sizes: std::collections::HashMap::new(),
-        size_distribution: std::collections::HashMap::new(),
         largest_files: Vec::new(),
         empty_directories: Vec::new(),
         errors: Vec::new(),
@@ -53,10 +52,9 @@ fn scan_result_defaults_are_zeroed() {
         r.total_size
     );
     say!(
-        "   Maps empty: file_types={}, extension_sizes={}, size_distribution={}",
+        "   Maps empty: file_types={}, extension_sizes={}",
         r.file_types.is_empty(),
         r.extension_sizes.is_empty(),
-        r.size_distribution.is_empty()
     );
     say!(
         "   Lists empty: largest_files={}, empty_dirs={}, errors={}",
@@ -69,7 +67,6 @@ fn scan_result_defaults_are_zeroed() {
     assert_eq!(r.total_size, 0);
     assert!(r.file_types.is_empty());
     assert!(r.extension_sizes.is_empty());
-    assert!(r.size_distribution.is_empty());
     assert!(r.largest_files.is_empty());
     assert!(r.empty_directories.is_empty());
     assert!(r.errors.is_empty());

@@ -62,6 +62,23 @@ pub struct ScanReport {
     /// the scan-history row so the History UI can hide it.
     #[serde(default)]
     pub is_index_only: bool,
+    /// Per-directory drill-down. For each of the top N directories (requested via
+    /// `--drill N`), lists its immediate child subdirectories and the largest
+    /// files directly inside it. Lets a consumer see what is consuming space
+    /// without re-scanning. Empty when `--drill` is 0 (the default).
+    #[serde(default)]
+    pub drill_down: HashMap<String, DirDrillDown>,
+}
+
+/// Immediate children and largest files for a single directory, produced by
+/// `--drill`. Lets you see what is consuming space inside a large directory
+/// without drilling in manually.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirDrillDown {
+    /// Immediate child subdirectories, sorted largest-first.
+    pub children: Vec<DirEntry>,
+    /// Largest files directly inside this directory, sorted largest-first.
+    pub largest_files: Vec<LargestFileEntry>,
 }
 
 /// Directory entry used in scan results
@@ -102,6 +119,7 @@ impl ScanReport {
             potential_cleanup_bytes: 0,
             timestamp: String::new(),
             is_index_only: false,
+            drill_down: HashMap::new(),
         }
     }
 

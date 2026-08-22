@@ -7,6 +7,41 @@ use super::super::*;
 use super::models::*;
 use crate::gui_common::ScanReport;
 
+/// A pair of SQL statements (count + query) and their bound parameter lists for a
+/// two-phase cached lookup.
+type CacheQuerySet = (
+    String,
+    String,
+    Vec<Box<dyn rusqlite::ToSql>>,
+    Vec<Box<dyn rusqlite::ToSql>>,
+);
+
+/// Parameters for a paginated scan-history query.
+pub struct HistoryPageQuery {
+    pub limit: usize,
+    pub offset: usize,
+    pub search: Option<String>,
+    pub sort_by: String,
+    pub sort_asc: bool,
+    pub only_duplicates: bool,
+    pub include_index_only: bool,
+}
+
+impl HistoryPageQuery {
+    /// Default history page: newest-first, newest 50 records.
+    pub fn new(limit: usize) -> Self {
+        Self {
+            limit,
+            offset: 0,
+            search: None,
+            sort_by: "timestamp".to_string(),
+            sort_asc: false,
+            only_duplicates: false,
+            include_index_only: false,
+        }
+    }
+}
+
 impl Database {
     /// Save a scan result to history with extended data.
     ///
@@ -207,14 +242,17 @@ impl Database {
     /// letting the caller learn the total number of duplicate records.
     pub fn get_scan_history_page(
         &self,
-        limit: usize,
-        offset: usize,
-        search: Option<&str>,
-        sort_by: &str,
-        sort_asc: bool,
-        only_duplicates: bool,
-        include_index_only: bool,
+        query: HistoryPageQuery,
     ) -> rusqlite::Result<(Vec<ScanHistoryRecord>, i64)> {
+        let HistoryPageQuery {
+            limit,
+            offset,
+            search,
+            sort_by,
+            sort_asc,
+            only_duplicates,
+            include_index_only,
+        } = query;
         let direction = if sort_asc { "ASC" } else { "DESC" };
         // "duplicates" ranks folders by how many times they have been scanned
         // (re-scans of the same path surface first). The window function only
@@ -227,7 +265,7 @@ impl Database {
                 "COUNT(*) OVER (PARTITION BY path) DESC, timestamp DESC".to_string()
             }
         } else {
-            let order = match sort_by {
+            let order = match sort_by.as_str() {
                 "path" => "path",
                 "total_files" => "total_files",
                 "total_size_bytes" => "total_size_bytes",
@@ -267,7 +305,7 @@ impl Database {
         let dup_clause = format!(
             "path IN (SELECT path FROM scan_history {where_idx} GROUP BY path HAVING COUNT(*) > 1)"
         );
-        let (count_sql, query_sql, bound) = match (search, only_duplicates) {
+        let (count_sql, query_sql, bound) = match (search.as_deref(), only_duplicates) {
             (Some(s), true) => {
                 let pattern = format!("%{}%", s.replace('\'', "''"));
                 (
@@ -420,12 +458,7 @@ impl Database {
             _ => String::new(),
         };
 
-        let (count_sql, query_sql, count_params, query_params): (
-            String,
-            String,
-            Vec<Box<dyn rusqlite::ToSql>>,
-            Vec<Box<dyn rusqlite::ToSql>>,
-        ) = if like.is_empty() {
+        let (count_sql, query_sql, count_params, query_params): CacheQuerySet = if like.is_empty() {
             (
                 "SELECT COUNT(DISTINCT file_path) FROM file_cache".to_string(),
                 "SELECT file_path, MAX(size_bytes) AS size_bytes, MAX(mtime_unix) AS mtime_unix, \
@@ -865,13 +898,16 @@ mod tests {
         insert_scan(&db, "C:\\unique", 300, 7);
 
         let (all, total_all) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .get_scan_history_page(HistoryPageQuery::new(50))
             .unwrap();
         assert_eq!(total_all, 3);
         assert_eq!(all.len(), 3);
 
         let (dupes, total_dupes) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, true, false)
+            .get_scan_history_page(HistoryPageQuery {
+                only_duplicates: true,
+                ..HistoryPageQuery::new(50)
+            })
             .unwrap();
         assert_eq!(total_dupes, 2, "both re-scans of C:\\dup must be returned");
         assert!(dupes.iter().all(|r| r.path.eq_ignore_ascii_case("C:\\dup")));
@@ -891,13 +927,16 @@ mod tests {
             .unwrap();
 
         let (all, total) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .get_scan_history_page(HistoryPageQuery::new(50))
             .unwrap();
         assert_eq!(total, 1, "index-only anchor must be excluded by default");
         assert!(all.iter().all(|r| !r.is_index_only));
 
         let (inc, total_inc) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, false, true)
+            .get_scan_history_page(HistoryPageQuery {
+                include_index_only: true,
+                ..HistoryPageQuery::new(50)
+            })
             .unwrap();
         assert_eq!(total_inc, 2, "--include-index-only must surface the anchor");
         assert!(inc.iter().any(|r| r.is_index_only));
@@ -914,7 +953,10 @@ mod tests {
         insert_scan(&db, "C:\\busy", 13, 1);
 
         let (rows, total) = db
-            .get_scan_history_page(50, 0, None, "duplicates", false, false, false)
+            .get_scan_history_page(HistoryPageQuery {
+                sort_by: "duplicates".to_string(),
+                ..HistoryPageQuery::new(50)
+            })
             .unwrap();
         assert_eq!(total, 4);
         // Most-re-scanned folder must come first when sorted by duplicates DESC.
@@ -925,7 +967,11 @@ mod tests {
 
         // Ascending puts the single-scan folder first.
         let (asc, _) = db
-            .get_scan_history_page(50, 0, None, "duplicates", true, false, false)
+            .get_scan_history_page(HistoryPageQuery {
+                sort_by: "duplicates".to_string(),
+                sort_asc: true,
+                ..HistoryPageQuery::new(50)
+            })
             .unwrap();
         assert_eq!(asc[0].path, "C:\\once");
     }
@@ -941,7 +987,7 @@ mod tests {
 
         // Page size 2 → only the two newest "C:\\busy" scans land on page 0.
         let (page0, total) = db
-            .get_scan_history_page(2, 0, None, "timestamp", false, false, false)
+            .get_scan_history_page(HistoryPageQuery::new(2))
             .unwrap();
         assert_eq!(total, 4);
         assert_eq!(page0.len(), 2);
@@ -953,7 +999,7 @@ mod tests {
         // A single full page must also report 3 for each "C:\\busy" row and 1
         // for the unique folder.
         let (all, _) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .get_scan_history_page(HistoryPageQuery::new(50))
             .unwrap();
         let busy = all.iter().find(|r| r.path.eq_ignore_ascii_case("C:\\busy")).unwrap();
         assert_eq!(busy.duplicate_count, 3);
@@ -1028,7 +1074,7 @@ mod tests {
             .unwrap();
 
         let (rows, total) = db
-            .get_scan_history_page(50, 0, None, "timestamp", false, false, false)
+            .get_scan_history_page(HistoryPageQuery::new(50))
             .unwrap();
         assert_eq!(total, 2, "index-only anchor excluded by default");
         let newest = rows.iter().find(|r| r.total_size_bytes == 150).unwrap();

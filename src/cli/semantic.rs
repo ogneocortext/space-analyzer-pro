@@ -122,18 +122,33 @@ fn create_index_only_anchor(
         .map_err(|e| AppError::Validation(format!("Failed to create scan record: {e}")))
 }
 
+/// Arguments for the `embed` subcommand.
+pub struct EmbedArgs {
+    pub path: Option<String>,
+    pub scan_id: Option<i64>,
+    pub min_size: Option<String>,
+    pub max_size: Option<String>,
+    pub include_hidden: bool,
+    pub no_gpu: bool,
+    pub if_not_indexed: bool,
+    pub format: OutputFormat,
+}
+
 /// Run the `embed` subcommand: scan a directory, embed every file via Ollama,
 /// and persist the vectors under a scan id.
 pub fn run_embed(
-    path: Option<String>,
-    scan_id: Option<i64>,
-    min_size: Option<String>,
-    max_size: Option<String>,
-    include_hidden: bool,
-    _no_gpu: bool,
-    if_not_indexed: bool,
-    format: OutputFormat,
+    EmbedArgs {
+        path,
+        scan_id,
+        min_size,
+        max_size,
+        include_hidden,
+        no_gpu,
+        if_not_indexed,
+        format,
+    }: EmbedArgs,
 ) -> AppResult<()> {
+    let _no_gpu = no_gpu;
     let raw_path = path.unwrap_or_else(|| ".".to_string());
     let scan_path = helpers::resolve_scan_path(&raw_path)?;
     let display = helpers::display_path(&scan_path);

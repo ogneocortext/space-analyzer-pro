@@ -56,6 +56,45 @@ pub fn export_results(
 /// The GUI consumes the streaming JSONL event, not this document, so reshaping
 /// it cannot break the desktop app.
 pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
+    // Human-readable companions for the raw-byte category maps so a reader
+    // does not have to mentally convert 15386990550 to "15 GB".
+    let category_reclaimable: serde_json::Value = serde_json::json!(
+        result
+            .category_reclaimable
+            .iter()
+            .map(|(k, v)| (k.clone(), format_bytes(*v)))
+            .collect::<std::collections::HashMap<String, String>>()
+    );
+    let category_sizes: serde_json::Value = serde_json::json!(
+        result
+            .category_sizes
+            .iter()
+            .map(|(k, v)| (k.clone(), format_bytes(*v)))
+            .collect::<std::collections::HashMap<String, String>>()
+    );
+    let reclaim_tier_sizes: serde_json::Value = serde_json::json!(
+        result
+            .reclaim_tier_sizes
+            .iter()
+            .map(|(k, v)| (k.clone(), format_bytes(*v)))
+            .collect::<std::collections::HashMap<String, String>>()
+    );
+
+    let top_directories: Vec<serde_json::Value> = result
+        .top_directories
+        .iter()
+        .map(|d| {
+            serde_json::json!({
+                "path": d.path,
+                "name": d.name,
+                "total_size": d.total_size,
+                "total_size_human": format_bytes(d.total_size),
+                "file_count": d.file_count,
+                "dir_count": d.dir_count,
+            })
+        })
+        .collect();
+
     let mut value = serde_json::json!({
         "path": result.path,
         "total_files": result.total_files,
@@ -69,13 +108,52 @@ pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
         "errors": result.errors,
         "file_types": result.file_types,
         "extension_sizes": result.extension_sizes,
-        "category_sizes": result.category_sizes,
-        "reclaim_tier_sizes": result.reclaim_tier_sizes,
-        "category_reclaimable": result.category_reclaimable,
-        "top_directories": result.top_directories,
-        "largest_files": result.largest_files,
+        "category_sizes": category_sizes,
+        "reclaim_tier_sizes": reclaim_tier_sizes,
+        "category_reclaimable": category_reclaimable,
+        "top_directories": top_directories,
+        "largest_files": result
+            .largest_files
+            .iter()
+            .map(|f| {
+                serde_json::json!({
+                    "path": f.path,
+                    "size": f.size,
+                    "size_human": format_bytes(f.size),
+                })
+            })
+            .collect::<Vec<_>>(),
         "timestamp": result.timestamp,
     });
+    if !result.drill_down.is_empty() {
+        let drill_json: serde_json::Value = serde_json::json!(
+            result
+                .drill_down
+                .iter()
+                .map(|(path, d)| {
+                    (
+                        path.clone(),
+                        serde_json::json!({
+                            "children": d.children.iter().map(|c| serde_json::json!({
+                                "path": c.path,
+                                "name": c.name,
+                                "total_size": c.total_size,
+                                "total_size_human": format_bytes(c.total_size),
+                                "file_count": c.file_count,
+                                "dir_count": c.dir_count,
+                            })).collect::<Vec<_>>(),
+                            "largest_files": d.largest_files.iter().map(|f| serde_json::json!({
+                                "path": f.path,
+                                "size": f.size,
+                                "size_human": format_bytes(f.size),
+                            })).collect::<Vec<_>>(),
+                        }),
+                    )
+                })
+                .collect::<std::collections::HashMap<String, serde_json::Value>>()
+        );
+        value.as_object_mut().unwrap().insert("drill_down".to_string(), drill_json);
+    }
     if !result.scanned_files.is_empty() {
         value.as_object_mut().unwrap().insert(
             "scanned_files".to_string(),
@@ -127,7 +205,7 @@ pub fn generate_jsonl(result: &ScanReport) -> AppResult<String> {
             "record": "directory",
             "path": dir.path,
             "name": dir.name,
-            "size_bytes": dir.total_size,
+            "total_size": dir.total_size,
             "file_count": dir.file_count,
             "dir_count": dir.dir_count,
         }))?);
@@ -137,7 +215,7 @@ pub fn generate_jsonl(result: &ScanReport) -> AppResult<String> {
         lines.push(serde_json::to_string(&serde_json::json!({
             "record": "file",
             "path": file.path,
-            "size_bytes": file.size,
+            "size": file.size,
         }))?);
     }
 

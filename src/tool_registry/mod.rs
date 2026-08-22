@@ -110,6 +110,7 @@ mod tests {
             potential_cleanup_bytes: 0,
             timestamp: String::new(),
             is_index_only: false,
+            drill_down: std::collections::HashMap::new(),
         }
     }
 

@@ -242,6 +242,35 @@ pub fn print_text_results(
         hprintln!();
     }
 
+    if !result.drill_down.is_empty() {
+        animation::print_section_header_animated("🔍", "DIRECTORY DRILL-DOWN", no_animation);
+        for (dir, detail) in result.drill_down.iter() {
+            hprintln!("   📁 {}", dir);
+            if !detail.children.is_empty() {
+                hprintln!("      {:>11} {:>8} {:>6}  {}", "Size", "Files", "Dirs", "Child");
+                for c in detail.children.iter().take(15) {
+                    hprintln!(
+                        "      {:>11} {:>8} {:>6}  {}",
+                        format_bytes(c.total_size),
+                        c.file_count,
+                        c.dir_count,
+                        c.name
+                    );
+                }
+                if detail.children.len() > 15 {
+                    hprintln!("      ... and {} more children", detail.children.len() - 15);
+                }
+            }
+            if !detail.largest_files.is_empty() {
+                hprintln!("      {:>11}  {}", "Size", "Largest file");
+                for f in detail.largest_files.iter().take(5) {
+                    hprintln!("      {:>11}  {}", format_bytes(f.size), f.path);
+                }
+            }
+            hprintln!();
+        }
+    }
+
     if !result.largest_files.is_empty() {
         animation::print_section_header_animated(
             "🏆",

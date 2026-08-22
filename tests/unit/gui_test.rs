@@ -97,7 +97,6 @@ fn scan_result_from_shared_converts_fields() {
         total_size: 1024,
         file_types: HashMap::from([("rs".into(), 3u64), ("md".into(), 2u64)]),
         extension_sizes: HashMap::from([("rs".into(), 600), ("md".into(), 424)]),
-        size_distribution: HashMap::new(),
         largest_files: vec![FileInfo {
             path: "/tmp/big.rs".into(),
             name: "big.rs".into(),

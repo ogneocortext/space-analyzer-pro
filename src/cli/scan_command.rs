@@ -23,6 +23,7 @@ pub struct ScanArgs {
     pub min_size: Option<String>,
     pub max_size: Option<String>,
     pub include_hidden: bool,
+    pub follow_symlinks: bool,
     pub threads: usize,
     pub no_gpu: bool,
     pub cache: bool,
@@ -35,7 +36,9 @@ pub struct ScanArgs {
     pub ask: Option<String>,
     pub stream: bool,
     pub progress_json: bool,
+    pub progress_log: Option<String>,
     pub files: bool,
+    pub drill: usize,
     pub log: Option<String>,
     pub output_format: OutputFormat,
     pub top_n: usize,
@@ -44,6 +47,22 @@ pub struct ScanArgs {
 
 pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     sink::route_human_output_to_stderr(args.output_format.is_machine_readable() || args.stream);
+
+    // Build the rayon thread pool ONCE per process with the requested thread count.
+    // `build_global()` can only succeed once per process, so it must live at CLI
+    // startup — not inside the scanner (which may be called repeatedly and would
+    // silently ignore `--threads` after the first initialization).
+    if args.threads > 0 {
+        if let Err(e) = rayon::ThreadPoolBuilder::new()
+            .num_threads(args.threads)
+            .build_global()
+        {
+            eprintln!(
+                "⚠️ Could not apply --threads {}: {}. Using default thread pool.",
+                args.threads, e
+            );
+        }
+    }
 
     let raw_path = args.path.clone().unwrap_or_else(|| ".".to_string());
     let scan_path: PathBuf = helpers::resolve_scan_path(&raw_path)?;
@@ -95,12 +114,15 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         min_size,
         max_size,
         args.include_hidden,
+        args.follow_symlinks,
         args.threads,
         args.no_gpu,
         args.cache,
         args.stream,
         args.progress_json,
+        args.progress_log,
         args.files,
+        args.drill,
         args.top_n,
         true,
         args.log.clone(),
@@ -111,6 +133,26 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         // is now unconditional for CLI scans, as it was before this refactor.
         args.no_anim,
     )?;
+
+    // A scan that hit many permission-denied errors probably skipped protected
+    // system directories (C:\Windows, C:\Program Files, etc.). Surface a warning
+    // so the user knows the totals are incomplete and can re-run elevated.
+    let permission_errors = result
+        .errors
+        .iter()
+        .filter(|e| {
+            e.contains("Permission denied")
+                || e.contains("Access is denied")
+                || e.contains("access is denied")
+        })
+        .count();
+    if permission_errors >= 5 {
+        eprintln!(
+            "⚠️  {} directories were skipped due to permissions. For full coverage, \
+             re-run from an elevated (Administrator) terminal.",
+            permission_errors
+        );
+    }
 
     if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {
         animation::print_completion_animation(result.duration_secs);

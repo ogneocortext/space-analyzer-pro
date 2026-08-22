@@ -16,7 +16,6 @@ impl FileScanner {
             total_size: 0,
             file_types: HashMap::new(),
             extension_sizes: HashMap::new(),
-            size_distribution: HashMap::new(),
             largest_files: Vec::new(),
             empty_directories: Vec::new(),
             errors: Vec::new(),
@@ -49,12 +48,6 @@ impl FileScanner {
                     "include_hidden": options.include_hidden,
                 })
             );
-        }
-
-        if options.num_threads > 0 {
-            let _ = rayon::ThreadPoolBuilder::new()
-                .num_threads(options.num_threads)
-                .build_global();
         }
 
         let mut walker = WalkDir::new(path);
@@ -120,7 +113,6 @@ impl FileScanner {
                 result.total_size = gpu_result.total_size;
                 result.file_types = gpu_result.file_types;
                 result.extension_sizes = gpu_result.extension_sizes;
-                result.size_distribution = gpu_result.size_distribution;
                 result.empty_directories = true_empty_dirs;
                 result.subdirectories = gpu_result
                     .subdirectories
@@ -167,7 +159,6 @@ impl FileScanner {
                         total_size: result.total_size,
                         current_file: "Cancelled".to_string(),
                         percentage: pct,
-                        completed: true,
                         live_files: live_files.clone(),
                         file_type_counts: file_type_counts.clone(),
                         extension_sizes: extension_sizes_acc.clone(),
@@ -273,15 +264,15 @@ impl FileScanner {
                                     extension: ext.clone(),
                                 };
                                 live_files.push(file_info.clone());
-
-                                if live_files.len() > 200 {
-                                    live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
-                                    live_files.truncate(100);
-                                }
                             }
                             entries_processed += 1;
 
-                            if entries_processed.is_multiple_of(200) {
+                            if entries_processed.is_multiple_of(5_000) {
+                                // Sort + truncate once per callback instead of on every
+                                // push — live_files is only consumed here, so sorting
+                                // 1.5M times was pure waste.
+                                live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
+                                live_files.truncate(100);
                                 let pct = if total_estimate > 0 {
                                     ((entries_processed as f32 / total_estimate as f32) * 100.0)
                                         .min(99.0)
@@ -296,7 +287,6 @@ impl FileScanner {
                                             total_size: current_size,
                                             current_file: path_str.clone(),
                                             percentage: pct,
-                                            completed: false,
                                             live_files: live_files.clone(),
                                             file_type_counts: file_type_counts.clone(),
                                             extension_sizes: extension_sizes_acc.clone(),
@@ -357,11 +347,6 @@ impl FileScanner {
                 };
                 live_files.push(file_info.clone());
 
-                if live_files.len() > 200 {
-                    live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
-                    live_files.truncate(100);
-                }
-
                 files_scanned += 1;
                 current_size += size;
                 scanned_files.insert(path_str.clone(), (size, mtime));
@@ -385,7 +370,10 @@ impl FileScanner {
                 }
             }
 
-            if entries_processed.is_multiple_of(200) {
+            if entries_processed.is_multiple_of(5_000) {
+                // Sort + truncate once per callback instead of on every push.
+                live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
+                live_files.truncate(100);
                 let pct = if total_estimate > 0 {
                     ((entries_processed as f32 / total_estimate as f32) * 100.0).min(99.0)
                 } else {
@@ -398,7 +386,6 @@ impl FileScanner {
                         total_size: current_size,
                         current_file: path_str.clone(),
                         percentage: pct,
-                        completed: false,
                         live_files: live_files.clone(),
                         file_type_counts: file_type_counts.clone(),
                         extension_sizes: extension_sizes_acc.clone(),
@@ -447,322 +434,12 @@ impl FileScanner {
                 total_size: result.total_size,
                 current_file: "Complete".to_string(),
                 percentage: 100.0,
-                completed: true,
                 live_files,
                 file_type_counts,
                 extension_sizes: extension_sizes_acc,
                 category_sizes: category_sizes_acc,
             });
         }));
-
-        Ok(result)
-    }
-
-    #[deprecated(
-        note = "scan_with_progress has duplicated categorization work and is unused; use scan_with_progress_sync instead"
-    )]
-    pub async fn scan_with_progress<F>(
-        &self,
-        path: &str,
-        options: ScanOptions,
-        progress_callback: F,
-        cancel_flag: &AtomicBool,
-    ) -> anyhow::Result<ScanResult>
-    where
-        F: Fn(ScanProgress) + Send + 'static + Clone,
-    {
-        let mut result = ScanResult {
-            total_files: 0,
-            total_directories: 0,
-            total_size: 0,
-            file_types: HashMap::new(),
-            extension_sizes: HashMap::new(),
-            size_distribution: HashMap::new(),
-            largest_files: Vec::new(),
-            empty_directories: Vec::new(),
-            errors: Vec::new(),
-            subdirectories: Vec::new(),
-            scanned_files: HashMap::new(),
-            category_sizes: HashMap::new(),
-            reclaim_tier_sizes: HashMap::new(),
-            category_reclaimable: HashMap::new(),
-        };
-
-        let callback = progress_callback.clone();
-        let cancel = cancel_flag;
-
-        let processed_entries = Arc::new(AtomicU64::new(0));
-        let processed_entries_clone = processed_entries.clone();
-
-        let current_files = Arc::new(AtomicU64::new(0));
-        let current_directories = Arc::new(AtomicU64::new(0));
-        let current_size = Arc::new(AtomicU64::new(0));
-
-        let current_files_clone = current_files.clone();
-        let current_directories_clone = current_directories.clone();
-        let current_size_clone = current_size.clone();
-
-        let mut scanned_files = HashMap::new();
-
-        let total_estimate = Arc::new(AtomicU64::new(1000));
-        let total_estimate_clone = total_estimate.clone();
-
-        let mut walker = WalkDir::new(path);
-        if let Some(depth) = options.max_depth {
-            walker = walker.max_depth(depth);
-        }
-        if !options.follow_symlinks {
-            walker = walker.follow_links(false);
-        }
-
-        let mut walk_entries: Vec<walkdir::DirEntry> = Vec::new();
-        for entry in walker.into_iter() {
-            match entry {
-                Ok(e) => walk_entries.push(e),
-                // Record traversal errors instead of silently discarding them
-                // (mirrors the fix in `scan_with_progress_sync`).
-                Err(error) => result.errors.push(format!("Traversal error: {error}")),
-            }
-        }
-        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
-
-        for entry_result in walk_entries {
-            if cancel.load(Ordering::Relaxed) {
-                return Err(anyhow::anyhow!("Scan cancelled"));
-            }
-
-            let path = entry_result.path();
-            let path_str = path.to_string_lossy().to_string();
-            let metadata = match entry_result.metadata() {
-                Ok(m) => m,
-                Err(e) => {
-                    result
-                        .errors
-                        .push(format!("Metadata error: {}: {}", path_str, e));
-                    continue;
-                }
-            };
-
-            let is_file = metadata.is_file();
-            let is_dir = metadata.is_dir();
-            let size = allocated_size(&metadata, path);
-            let mtime = Self::get_mtime_unix(&metadata);
-
-            if !is_dir {
-                if let Some(cache_map) = options.file_cache.as_ref() {
-                    if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
-                        if cached_size == size && cached_mtime == mtime {
-                            scanned_files.insert(path_str.clone(), (cached_size, cached_mtime));
-                            let files_count =
-                                current_files_clone.fetch_add(1, Ordering::Relaxed) + 1;
-                            let size_count = current_size_clone
-                                .fetch_add(cached_size, Ordering::Relaxed)
-                                + cached_size;
-
-                            result.total_files = files_count;
-                            result.total_size = size_count;
-
-                            let ext = path_str
-                                .rsplit('.')
-                                .next()
-                                .filter(|s| !s.is_empty())
-                                .map(|s| s.to_lowercase())
-                                .unwrap_or_default();
-                            *result.file_types.entry(ext.clone()).or_insert(0) += 1;
-
-                            if options.size_buckets {
-                                let bucket = size_bucket(cached_size);
-                                *result
-                                    .size_distribution
-                                    .entry(bucket.to_string())
-                                    .or_insert(0) += 1;
-                            }
-
-                            if result.largest_files.len() < 100
-                                || cached_size
-                                    > result.largest_files.last().map(|f| f.size).unwrap_or(0)
-                            {
-                                let file_info = FileInfo {
-                                    path: path_str.clone(),
-                                    name: path_str
-                                        .rsplit(std::path::MAIN_SEPARATOR)
-                                        .next()
-                                        .unwrap_or("")
-                                        .to_string(),
-                                    size: cached_size,
-                                    modified: std::fs::metadata(&path_str)
-                                        .ok()
-                                        .and_then(|m| m.modified().ok())
-                                        .and_then(Self::format_timestamp),
-                                    file_type: "file".to_string(),
-                                    extension: ext,
-                                };
-                                result.largest_files.push(file_info);
-                                result
-                                    .largest_files
-                                    .sort_by_key(|b| std::cmp::Reverse(b.size));
-                                result.largest_files.truncate(100);
-                            }
-
-                            let processed =
-                                processed_entries_clone.fetch_add(1, Ordering::Relaxed) + 1;
-                            let total = total_estimate_clone.load(Ordering::Relaxed);
-                            if processed > total {
-                                total_estimate_clone.store(processed + 1000, Ordering::Relaxed);
-                            }
-
-                            let files_scanned = current_files_clone.load(Ordering::Relaxed);
-                            let directories_scanned =
-                                current_directories_clone.load(Ordering::Relaxed);
-                            let total_size = current_size_clone.load(Ordering::Relaxed);
-                            let current_total = total_estimate_clone.load(Ordering::Relaxed);
-
-                            let progress = ScanProgress {
-                                files_scanned,
-                                directories_scanned,
-                                total_size,
-                                current_file: path_str.clone(),
-                                percentage: if current_total > 0 {
-                                    ((processed as f32 / current_total as f32) * 100.0).min(99.0)
-                                } else {
-                                    0.0
-                                },
-                                completed: false,
-                                live_files: Vec::new(),
-                                file_type_counts: HashMap::new(),
-                                extension_sizes: HashMap::new(),
-                                category_sizes: HashMap::new(),
-                            };
-
-                            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                callback(progress);
-                            }));
-                            continue;
-                        }
-                    }
-                }
-            }
-
-            let should_process = if is_file {
-                self.should_include_file(&metadata, path, &options)
-            } else {
-                true
-            };
-
-            if should_process {
-                if is_file {
-                    let files_count = current_files_clone.fetch_add(1, Ordering::Relaxed) + 1;
-                    let size_count = current_size_clone.fetch_add(size, Ordering::Relaxed) + size;
-
-                    result.total_files = files_count;
-                    result.total_size = size_count;
-
-                    let ext = path
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .unwrap_or("")
-                        .to_lowercase();
-                    *result.file_types.entry(ext.clone()).or_insert(0) += 1;
-
-                    if options.size_buckets {
-                        let bucket = size_bucket(size);
-                        *result
-                            .size_distribution
-                            .entry(bucket.to_string())
-                            .or_insert(0) += 1;
-                    }
-
-                    if result.largest_files.len() < 100
-                        || size > result.largest_files.last().map(|f| f.size).unwrap_or(0)
-                    {
-                        let file_info = FileInfo {
-                            path: path_str.clone(),
-                            name: path
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("")
-                                .to_string(),
-                            size,
-                            modified: Self::format_timestamp(
-                                metadata
-                                    .modified()
-                                    .ok()
-                                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
-                            ),
-                            file_type: "file".to_string(),
-                            extension: ext,
-                        };
-                        result.largest_files.push(file_info);
-                        result
-                            .largest_files
-                            .sort_by_key(|b| std::cmp::Reverse(b.size));
-                        result.largest_files.truncate(100);
-                    }
-                } else if is_dir {
-                    let dirs_count = current_directories_clone.fetch_add(1, Ordering::Relaxed) + 1;
-                    result.total_directories = dirs_count;
-                }
-            }
-
-            let processed = processed_entries_clone.fetch_add(1, Ordering::Relaxed) + 1;
-            let total = total_estimate_clone.load(Ordering::Relaxed);
-
-            if processed > total {
-                total_estimate_clone.store(processed + 1000, Ordering::Relaxed);
-            }
-
-            let files_scanned = current_files_clone.load(Ordering::Relaxed);
-            let directories_scanned = current_directories_clone.load(Ordering::Relaxed);
-            let total_size = current_size_clone.load(Ordering::Relaxed);
-            let current_total = total_estimate_clone.load(Ordering::Relaxed);
-
-            let progress = ScanProgress {
-                files_scanned,
-                directories_scanned,
-                total_size,
-                current_file: if should_process {
-                    path_str
-                } else {
-                    "Skipping".to_string()
-                },
-                percentage: if current_total > 0 {
-                    ((processed as f32 / current_total as f32) * 100.0).min(99.0)
-                } else {
-                    0.0
-                },
-                completed: false,
-                live_files: Vec::new(),
-                file_type_counts: HashMap::new(),
-                extension_sizes: HashMap::new(),
-                category_sizes: HashMap::new(),
-            };
-
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                callback(progress);
-            }));
-        }
-
-        {
-            let final_progress = ScanProgress {
-                files_scanned: result.total_files,
-                directories_scanned: result.total_directories,
-                total_size: result.total_size,
-                current_file: "Complete".to_string(),
-                percentage: 100.0,
-                completed: true,
-                live_files: Vec::new(),
-                file_type_counts: HashMap::new(),
-                extension_sizes: HashMap::new(),
-                category_sizes: HashMap::new(),
-            };
-
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                callback(final_progress);
-            }));
-        }
-
-        result.empty_directories = true_empty_dirs;
-        result.scanned_files = scanned_files;
 
         Ok(result)
     }
