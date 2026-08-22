@@ -1,0 +1,13 @@
+{
+  "name": "space-analyzer-mcp",
+  "version": "1.0.0",
+  "description": "MCP server exposing Space Analyzer CLI tools to AI clients",
+  "type": "module",
+  "main": "space-analyzer-mcp.mjs",
+  "scripts": {
+    "start": "node space-analyzer-mcp.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  }
+}
