@@ -71,6 +71,29 @@ pub fn print_text_results(
     }
     hprintln!();
 
+    // Reclaim estimate, split by tier: Safe (no-regret deletes like caches and
+    // build output) vs Caution (large/re-downloadable — AI models, VMs, archives
+    // — that the user may want to keep). Showing them together would make Caution
+    // items look freely deletable, so we separate them.
+    let safe_bytes = result.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0);
+    let caution_bytes = result.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0);
+    if safe_bytes > 0 || caution_bytes > 0 {
+        animation::print_section_header_animated("🧹", "RECLAIM ESTIMATE", no_animation);
+        hprintln!(
+            "   Safe to delete:     {} (caches, temp, build output, dependencies)",
+            format_bytes(safe_bytes)
+        );
+        hprintln!(
+            "   Review needed:      {} (AI models, VMs, archives — may be wanted)",
+            format_bytes(caution_bytes)
+        );
+        hprintln!(
+            "   Total reclaimable:  {}",
+            format_bytes(safe_bytes + caution_bytes)
+        );
+        hprintln!();
+    }
+
     if !result.top_directories.is_empty() {
         animation::print_section_header_animated(
             "📁",

@@ -104,6 +104,12 @@ pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
         "total_size_mb": round2(result.total_size_mb),
         "potential_cleanup_bytes": result.potential_cleanup_bytes,
         "potential_cleanup_human": format_bytes(result.potential_cleanup_bytes),
+        // Tier split: Safe (no-regret) vs Caution (review-first). Lets consumers
+        // show users what is freely deletable vs what they may want to keep.
+        "reclaim_safe_bytes": result.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0),
+        "reclaim_safe_human": format_bytes(result.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0)),
+        "reclaim_caution_bytes": result.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0),
+        "reclaim_caution_human": format_bytes(result.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0)),
         "duration_secs": round2(result.duration_secs),
         "errors": result.errors,
         "file_types": result.file_types,

@@ -248,10 +248,12 @@ mod tests {
             Recommendation {
                 priority: 0,
                 message: "low".into(),
+                tier: "safe".into(),
             },
             Recommendation {
                 priority: 3,
                 message: "high".into(),
+                tier: "caution".into(),
             },
         ];
         let mut sorted = recs.clone();

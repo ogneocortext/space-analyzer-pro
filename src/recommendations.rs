@@ -17,6 +17,12 @@ use std::path::Path;
 pub struct Recommendation {
     pub priority: u32,
     pub message: String,
+    /// Which reclaim tier this suggestion targets. `safe` = no-regret deletes
+    /// (caches, temp, build output); `caution` = review-first (AI models, VMs,
+    /// archives the user may want to keep). Lets renderers phrase the advice
+    /// appropriately instead of implying everything is freely deletable.
+    #[serde(default)]
+    pub tier: String,
 }
 
 /// True for file paths that look like installers / redistributable packages.
@@ -83,7 +89,9 @@ pub fn node_modules_bytes(result: &ScanReport) -> u64 {
 /// top directories, largest files) plus a live disk-usage lookup — it never
 /// touches the filesystem contents.
 pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
-    let mut recs: Vec<(u32, String)> = Vec::new();
+    // (priority, message, tier) — tier is "safe" for no-regret deletes,
+    // "caution" for review-first items the user may want to keep.
+    let mut recs: Vec<(u32, String, &str)> = Vec::new();
 
     if let Some(pct) = usage_percent_for(&result.path) {
         if pct > 90.0 {
@@ -93,6 +101,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                     "CRITICAL: Drive holding {} is {:.0}% full! Immediate cleanup recommended.",
                     result.path, pct
                 ),
+                "safe",
             ));
         } else if pct > 80.0 {
             recs.push((
@@ -101,6 +110,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                     "WARNING: Drive holding {} is {:.0}% full. Consider cleanup soon.",
                     result.path, pct
                 ),
+                "safe",
             ));
         }
     }
@@ -116,9 +126,10 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
         recs.push((
             2,
             format!(
-                "Ollama models are using {}. Run `ollama rm <model>` to free space.",
+                "Ollama / AI models are using {}. Review and run `ollama rm <model>` to free space if unwanted.",
                 format_bytes(ollama_size)
             ),
+            "caution",
         ));
     }
 
@@ -130,6 +141,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Log files are using {}. Consider clearing old logs.",
                 format_bytes(log_size)
             ),
+            "safe",
         ));
     }
 
@@ -141,6 +153,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Installer/executable files are using {}. Check Downloads for old installers.",
                 format_bytes(exe_size)
             ),
+            "caution",
         ));
     }
 
@@ -181,6 +194,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 names.join(", "),
                 suffix
             ),
+            "caution",
         ));
     }
 
@@ -192,6 +206,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "node_modules directories are using {}. Run `npm prune` or delete unused project dependencies.",
                 format_bytes(node_modules_size)
             ),
+            "safe",
         ));
     }
 
@@ -217,6 +232,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Cache/temp directories are using {}. Consider clearing application caches.",
                 format_bytes(cache_size)
             ),
+            "safe",
         ));
     }
 
@@ -233,6 +249,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Recycle Bin contains {} of deleted files. Empty it to reclaim space.",
                 format_bytes(recycle_bin_size)
             ),
+            "safe",
         ));
     }
 
@@ -252,6 +269,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Downloads folder is using {}. Look for old installers (CUDA, drivers, apps) you can delete.",
                 format_bytes(downloads_size)
             ),
+            "caution",
         ));
     }
 
@@ -268,6 +286,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Windows Installer cache is using {}. Use Disk Cleanup (cleanmgr) or PatchCleaner to remove orphaned .msi/.msp files.",
                 format_bytes(installer_cache)
             ),
+            "safe",
         ));
     }
 
@@ -287,6 +306,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "Browser updater cache (Google, Edge) is using {}. Safe to clear — browsers will re-download on update.",
                 format_bytes(browser_cache)
             ),
+            "safe",
         ));
     }
 
@@ -307,6 +327,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
                 "User debug/cache files are using {}. Check Downloads, Documents, and AppData for old logs and artifacts.",
                 format_bytes(user_debug)
             ),
+            "safe",
         ));
     }
 
@@ -315,12 +336,13 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
             0,
             "Run with `--clean` to find duplicate files that can be deduplicated using hard links."
                 .to_string(),
+            "safe",
         ));
     }
 
     let mut recs: Vec<Recommendation> = recs
         .into_iter()
-        .map(|(priority, message)| Recommendation { priority, message })
+        .map(|(priority, message, tier)| Recommendation { priority, message, tier: tier.to_string() })
         .collect();
     // Sort once, here, so every consumer (CLI, dashboard, agent) agrees on
     // the order of the same advice.
