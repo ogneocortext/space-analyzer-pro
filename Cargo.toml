@@ -48,7 +48,7 @@ name = "ollama-demo"
 path = "src/bin/ollama-features.rs"
 
 [dependencies]
-scan-engine = { path = "scan-engine", features = ["gpu"] }
+scan-engine = { path = "scan-engine" }
 gpu-compute = { path = "gpu-compute" }
 file-deduplicator = { path = "native/file_deduplicator" }
 # Core functionality (workspace-inherited)

@@ -1,9 +1,13 @@
 param(
     [string]$Filter = "",
     [switch]$OnlyFailures,
-    [switch]$ListTests
+    [switch]$ListTests,
+    [switch]$Verbose
 )
 
+$startTime = Get-Date
+
+# Run tests and capture output
 $raw = & cargo test --workspace $Filter 2>&1
 
 $crates = @()
@@ -23,14 +27,13 @@ foreach ($line in $raw) {
                 Tests  = $currentTests
             }
         }
-        # Strip the hash suffix for readability: "file_deduplicator" from "file_deduplicator-8217ca918aef82bc"
         $fullName = $Matches[1]
         $crateName = $fullName -replace '-[0-9a-f]{16}$', ''
         $currentCrate = $crateName
         $currentTests = @()
     }
 
-    # Match per-test result: "test <full::path> ... ok" or "... FAILED" or "... ignored"
+    # Match per-test result
     if ($line -match '^test (\S+) \.\.\. (ok|FAILED|ignored)\s*$') {
         $currentTests += [PSCustomObject]@{
             Name   = $Matches[1]
@@ -38,12 +41,14 @@ foreach ($line in $raw) {
         }
     }
 
+    # Match test result summary line
     if ($line -match 'test result: (ok|FAILED)\.\s+(\d+) passed;\s+(\d+) failed;\s+(\d+) ignored') {
         $totalPassed += [int]$Matches[2]
         $totalFailed += [int]$Matches[3]
         $totalIgnored += [int]$Matches[4]
     }
 
+    # Capture compile errors
     if ($line -match 'error\[E\d+\]|error: could not compile') {
         $compileErrors += $line.Trim()
     }
@@ -54,7 +59,7 @@ if ($currentCrate -and $currentTests.Count -gt 0) {
     $crates += [PSCustomObject]@{ Name = $currentCrate; Tests = $currentTests }
 }
 
-# Crates with no tests (compile-only\.exe) — show them as 0 so the user sees everything was exercised
+# Crates with no tests (compile-only)
 foreach ($line in $raw) {
     if ($line -match 'Running .* \(target[\\/]debug[\\/]deps[\\/](\w+-\w+)\.exe\)') {
         $fullName = $Matches[1]
@@ -65,8 +70,14 @@ foreach ($line in $raw) {
     }
 }
 
+$duration = (Get-Date) - $startTime
+
+# === Output ===
 Write-Host ""
-Write-Host "=== Workspace Test Results ==="
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  WORKSPACE TEST RESULTS" -ForegroundColor Cyan
+Write-Host "  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $([math]::Round($duration.TotalSeconds,1))s" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
 foreach ($crate in $crates) {
@@ -76,16 +87,18 @@ foreach ($crate in $crates) {
 
     if ($OnlyFailures -and $failed -eq 0) { continue }
     if ($crate.Tests.Count -eq 0) {
-        Write-Host ("[----] {0,-40} (compile-only, no tests)" -f $crate.Name) -ForegroundColor Gray
+        Write-Host "  [----] $($crate.Name.PadRight(38)) compile-only, no tests" -ForegroundColor DarkGray
         continue
     }
 
-    $marker = if ($failed -gt 0) { "FAIL" } else { "ok  " }
-    Write-Host ("[{0}] {1,-40} {2} passed, {3} failed, {4} skipped" -f $marker, $crate.Name, $passed, $failed, $skipped)
+    $statusIcon = if ($failed -gt 0) { "[FAIL]" } else { "[ ok ]" }
+    $statusColor = if ($failed -gt 0) { "Red" } else { "Green" }
+    Write-Host "  $statusIcon $($crate.Name.PadRight(38)) $($passed) passed, $($failed) failed, $($skipped) skipped" -ForegroundColor $statusColor
 
+    # Show individual tests
     $displayTests = if ($OnlyFailures) {
         $crate.Tests | Where-Object { $_.Result -ne 'ok' }
-    } elseif ($ListTests) {
+    } elseif ($ListTests -or $Verbose) {
         $crate.Tests
     } else {
         $crate.Tests | Where-Object { $_.Result -ne 'ok' }
@@ -102,21 +115,31 @@ foreach ($crate in $crates) {
             "FAILED"  { "Red" }
             "ignored" { "DarkYellow" }
         }
-        Write-Host ("       {0}  {1}" -f $icon, $t.Name) -ForegroundColor $color
+        # Shorten test name for readability
+        $shortName = $t.Name -replace '^.*?(::tests::|::)', ''
+        Write-Host "         $icon  $shortName" -ForegroundColor $color
     }
     Write-Host ""
 }
 
-Write-Host ("-" * 74)
-Write-Host ("TOTAL: {0} passed, {1} failed, {2} skipped across {3} crates" -f $totalPassed, $totalFailed, $totalIgnored, $crates.Count)
+Write-Host "  $( '-' * 50)" -ForegroundColor DarkGray
+Write-Host ""
+
+$totalTests = $totalPassed + $totalFailed + $totalIgnored
+$statusLine = "  TOTAL: $($totalPassed) passed, $($totalFailed) failed, $($totalIgnored) skipped"
+$statusLine += " ($($totalTests) tests across $($crates.Count) crates)"
 
 if ($totalFailed -gt 0 -or $compileErrors.Count -gt 0) {
+    Write-Host $statusLine -ForegroundColor Red
     Write-Host ""
-    Write-Host "=== Compile Errors ===" -ForegroundColor Red
-    foreach ($e in $compileErrors) { Write-Host $e -ForegroundColor Red }
+    Write-Host "  === COMPILE ERRORS ===" -ForegroundColor Red
+    foreach ($e in $compileErrors) { Write-Host "  $e" -ForegroundColor Red }
+    Write-Host ""
     exit 1
 } else {
-    Write-Host "All tests passed." -ForegroundColor Green
+    Write-Host $statusLine -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  All tests passed!" -ForegroundColor Green
+    Write-Host ""
     exit 0
 }
-
