@@ -2,7 +2,7 @@ use crate::cli::helpers;
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::ScanReport;
-use space_analyzer_pro_desktop::ollama::agentic::{agentic_question, ToolExecutor};
+use space_analyzer_pro_desktop::ollama::agentic::{ToolExecutor, agentic_question};
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use space_analyzer_pro_desktop::tool_registry::ToolRegistry;
 
@@ -24,13 +24,11 @@ pub fn run_ask(question: &str, scan_id: Option<i64>) -> AppResult<()> {
                 None => db.get_latest_scan_id().ok().flatten(),
             };
             match id_opt {
-                Some(id) => db
-                    .get_scan_by_id(id)
-                    .map_err(|e| {
-                        space_analyzer_pro_desktop::error::AppError::Validation(format!(
-                            "Failed to load scan {id}: {e}"
-                        ))
-                    })?,
+                Some(id) => db.get_scan_by_id(id).map_err(|e| {
+                    space_analyzer_pro_desktop::error::AppError::Validation(format!(
+                        "Failed to load scan {id}: {e}"
+                    ))
+                })?,
                 None => None,
             }
         }

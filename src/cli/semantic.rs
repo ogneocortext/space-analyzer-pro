@@ -201,9 +201,7 @@ pub fn run_embed(
     if let Some(requested_id) = scan_id {
         match db.get_scan_by_id(requested_id) {
             Ok(Some(rec)) => {
-                if normalize_path_for_match(&rec.path)
-                    != normalize_path_for_match(&display)
-                {
+                if normalize_path_for_match(&rec.path) != normalize_path_for_match(&display) {
                     return Err(AppError::Validation(format!(
                         "Scan #{requested_id} indexes `{}`, which does not match the requested embed path `{}`",
                         rec.path, display
@@ -213,12 +211,12 @@ pub fn run_embed(
             Ok(None) => {
                 return Err(AppError::Validation(format!(
                     "No scan record found with id {requested_id}"
-                )))
+                )));
             }
             Err(e) => {
                 return Err(AppError::Validation(format!(
                     "Failed to read scan #{requested_id}: {e}"
-                )))
+                )));
             }
         }
     }
@@ -238,29 +236,30 @@ pub fn run_embed(
     let total_size: u64 = files.iter().map(|(_, s, _)| *s).sum();
     let scan_id = if let Some(id) = scan_id {
         id
-        } else if if_not_indexed {
-            match db.get_latest_scan_id_for_path(&display) {
-                Ok(Some(existing)) => {
-                    let model_ok = db
-                        .get_embedding_model(existing)
-                        .map_err(|e| AppError::Validation(format!("Failed to read embedding model: {e}")))?
-                        .map(|m| m == settings.embedding_model)
-                        .unwrap_or(false);
-                    let has_vectors = db
-                        .count_embeddings_for_scan(existing)
-                        .map_err(|e| AppError::Validation(format!("Failed to count embeddings: {e}")))?
-                        > 0;
-                    if model_ok && has_vectors {
-                        existing
-                    } else {
-                        create_index_only_anchor(&db, &display, files.len(), total_size)?
-                    }
+    } else if if_not_indexed {
+        match db.get_latest_scan_id_for_path(&display) {
+            Ok(Some(existing)) => {
+                let model_ok = db
+                    .get_embedding_model(existing)
+                    .map_err(|e| {
+                        AppError::Validation(format!("Failed to read embedding model: {e}"))
+                    })?
+                    .map(|m| m == settings.embedding_model)
+                    .unwrap_or(false);
+                let has_vectors = db.count_embeddings_for_scan(existing).map_err(|e| {
+                    AppError::Validation(format!("Failed to count embeddings: {e}"))
+                })? > 0;
+                if model_ok && has_vectors {
+                    existing
+                } else {
+                    create_index_only_anchor(&db, &display, files.len(), total_size)?
                 }
-                _ => create_index_only_anchor(&db, &display, files.len(), total_size)?,
             }
-        } else {
-            create_index_only_anchor(&db, &display, files.len(), total_size)?
-        };
+            _ => create_index_only_anchor(&db, &display, files.len(), total_size)?,
+        }
+    } else {
+        create_index_only_anchor(&db, &display, files.len(), total_size)?
+    };
 
     // Issue #1: reuse a fresh existing index instead of rebuilding it. A rebuild
     // re-runs the whole Ollama job and clobbers any index already built for this
@@ -272,9 +271,9 @@ pub fn run_embed(
             .map_err(|e| AppError::Validation(format!("Failed to read embedding model: {e}")))?
         {
             if stored_model == settings.embedding_model {
-                let existing = db
-                    .count_embeddings_for_scan(scan_id)
-                    .map_err(|e| AppError::Validation(format!("Failed to count embeddings: {e}")))?;
+                let existing = db.count_embeddings_for_scan(scan_id).map_err(|e| {
+                    AppError::Validation(format!("Failed to count embeddings: {e}"))
+                })?;
                 if existing > 0 {
                     if format == OutputFormat::Json {
                         let response = serde_json::json!({

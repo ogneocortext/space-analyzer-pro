@@ -148,6 +148,6 @@ fn truncate(s: &str, max: usize) -> String {
     if n <= max {
         return s.to_string();
     }
-    let skip = n - max + 1;
+    let skip = n - max;
     format!("…{}", s.chars().skip(skip).collect::<String>())
 }

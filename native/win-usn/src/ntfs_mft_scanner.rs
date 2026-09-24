@@ -3,7 +3,7 @@
 //! Provides ultra-fast scanning by directly reading the NTFS Master File Table
 //! Achieves up to 46x faster scanning compared to traditional file system traversal
 
-use crate::windows_errors::{WindowsError, ERROR_HANDLE_EOF};
+use crate::windows_errors::{ERROR_HANDLE_EOF, WindowsError};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::ptr;
 use winapi::shared::minwindef::{DWORD, LPVOID};
 use winapi::um::errhandlingapi::GetLastError;
-use winapi::um::fileapi::{CreateFileW, ReadFile, SetFilePointerEx, OPEN_EXISTING};
+use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING, ReadFile, SetFilePointerEx};
 use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
 use winapi::um::winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE, LARGE_INTEGER};
 
@@ -585,7 +585,7 @@ impl NtfsMftScanner {
         use winapi::um::handleapi::CloseHandle;
         use winapi::um::processthreadsapi::{GetCurrentProcess, OpenProcessToken};
         use winapi::um::securitybaseapi::GetTokenInformation;
-        use winapi::um::winnt::{TokenElevation, HANDLE, TOKEN_ELEVATION, TOKEN_QUERY};
+        use winapi::um::winnt::{HANDLE, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation};
 
         unsafe {
             let mut token_handle: HANDLE = ptr::null_mut();

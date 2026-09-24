@@ -191,6 +191,92 @@ $UpdateJobSb = {
     }
 }
 
+# Async refresh handler: re-runs check_updates.ps1 -Dashboard on a background
+# thread, streaming its output lines as `refresh_line` SSE events so the UI
+# shows live progress. Emits `refresh_done` with the freshly written
+# update_data.json payload, then `end`. Runs off the listener loop (previously
+# this ran synchronously and froze the whole dashboard during a refresh).
+$RefreshJobSb = {
+    param($Context, [string]$GenPath, [string]$DataPath, [string]$LogFile)
+
+    function Write-LogThread {
+        param([string]$Message)
+        $ts = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
+        $line = "[$ts] $Message"
+        Write-Host $line
+        try { Add-Content -Path $LogFile -Value $line -Encoding UTF8 } catch {}
+    }
+
+    function Send-SseHeaders {
+        param($Context)
+        $Context.Response.StatusCode = 200
+        $Context.Response.ContentType = 'text/event-stream'
+        try { $Context.Response.Headers.Add('Cache-Control', 'no-cache') } catch {}
+        try { $Context.Response.Headers.Add('Connection', 'keep-alive') } catch {}
+    }
+
+    function Write-Sse {
+        param($Context, $EventType, $Data)
+        try {
+            $json = $Data | ConvertTo-Json -Compress -Depth 10
+            $msg = "event: ${EventType}`ndata: ${json}`n`n"
+            $buf = [System.Text.Encoding]::UTF8.GetBytes($msg)
+            $Context.Response.OutputStream.Write($buf, 0, $buf.Length)
+            $Context.Response.OutputStream.Flush()
+        } catch {}
+    }
+
+    try {
+        Send-SseHeaders $Context
+        Write-Sse $Context 'refresh_start' @{ }
+        Write-LogThread "REFRESH START: check_updates.ps1 -Dashboard -SkipPortable -SkipWinget"
+        $psi = [System.Diagnostics.ProcessStartInfo]::new()
+        $psi.FileName = 'pwsh.exe'
+        $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -Command `"& '$GenPath' -Dashboard -SkipPortable -SkipWinget 2>&1 | ForEach-Object { Write-Output `"`$_`" }`""
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError = $true
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        while (-not $proc.HasExited) {
+            $line = $proc.StandardOutput.ReadLine()
+            if ($line) { Write-Sse $Context 'refresh_line' @{ line = $line } }
+            $errLine = $proc.StandardError.ReadLine()
+            if ($errLine) { Write-Sse $Context 'refresh_line' @{ line = "[err] $errLine" } }
+        }
+        while (-not $proc.StandardOutput.EndOfStream) {
+            $line = $proc.StandardOutput.ReadLine()
+            if ($line) { Write-Sse $Context 'refresh_line' @{ line = $line } }
+        }
+        $exitCode = $proc.ExitCode
+        $proc.Dispose()
+
+        $payload = @{ packages = @(); timestamp = $null; summary = $null; projects = @() }
+        if (Test-Path $DataPath) {
+            try {
+                $obj = (Get-Content $DataPath -Raw -Encoding UTF8) | ConvertFrom-Json -AsHashtable
+                $payload = @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary; projects = $obj.projects }
+            } catch {
+                Write-LogThread "REFRESH ERROR: failed to parse update_data.json - $($_.Exception.Message)"
+            }
+        } else {
+            Write-LogThread "REFRESH ERROR: update_data.json not found after generation"
+        }
+        Write-Sse $Context 'refresh_done' @{ success = ($exitCode -eq 0); exitCode = $exitCode; data = $payload }
+        Write-LogThread "REFRESH DONE: exit $exitCode, $($payload.packages.Count) packages served"
+        Write-Sse $Context 'end' @{ }
+    } catch {
+        Write-LogThread "REFRESH JOB ERROR: $($_.Exception.Message)"
+        try {
+            Write-Sse $Context 'refresh_done' @{ success = $false; exitCode = -1; data = @{ packages = @(); timestamp = $null; summary = $null; projects = @() } }
+            Write-Sse $Context 'end' @{ }
+        } catch {}
+    } finally {
+        try { $Context.Response.Close() } catch {}
+    }
+}
+
 Write-Host ""
 Write-Host "  Update Dashboard Server" -ForegroundColor Cyan
 Write-Host "  http://localhost:${Port}" -ForegroundColor Green
@@ -247,24 +333,12 @@ try {
                 continue
             }
             '^/api/refresh$' {
-                # Re-run the dependency check (portable/winget skipped for speed) which writes
-                # update_data.json; then serve the freshly written data.
-                Write-Log "REFRESH: re-running check_updates.ps1 -Dashboard -SkipPortable -SkipWinget"
+                # Async: hand off to a background thread so the listener stays
+                # responsive while the dependency check runs (previously this ran
+                # synchronously here and froze the dashboard for the duration).
                 $genPath = Join-Path $PSScriptRoot 'check_updates.ps1'
-                & pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "& '$genPath' -Dashboard -SkipPortable -SkipWinget" 2>$null
-                if (Test-Path $dataPath) {
-                    try {
-                        $obj = (Get-Content $dataPath -Raw -Encoding UTF8) | ConvertFrom-Json -AsHashtable
-                        Send-Json $Context @{ packages = $obj.packages; timestamp = $obj.timestamp; summary = $obj.summary; projects = $obj.projects }
-                        Write-Log "REFRESH complete: $($obj.packages.Count) packages served"
-                    } catch {
-                        Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null; projects = @() }
-                        Write-Log "REFRESH ERROR: failed to parse update_data.json - $($_.Exception.Message)"
-                    }
-                } else {
-                    Send-Json $Context @{ packages = @(); timestamp = $null; summary = $null; projects = @() }
-                    Write-Log "REFRESH ERROR: update_data.json not found after generation"
-                }
+                $null = Start-ThreadJob -ScriptBlock $RefreshJobSb -ArgumentList $Context, $genPath, $dataPath, $logFile
+                continue
             }
             '^/api/updates$' {
                 if (Test-Path $dataPath) {

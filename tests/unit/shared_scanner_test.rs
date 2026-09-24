@@ -376,8 +376,8 @@ fn plain_progress_scan_populates_scanned_files() {
         .iter()
         .find(|(p, _)| p.ends_with("keep.txt"))
         .expect("keep.txt should be present in scanned_files");
-    assert_eq!(entry.1 .0, 8, "recorded size should match written bytes");
-    assert!(entry.1 .1 > 0, "recorded mtime should be non-zero");
+    assert_eq!(entry.1.0, 8, "recorded size should match written bytes");
+    assert!(entry.1.1 > 0, "recorded mtime should be non-zero");
     info!("PASS");
 }
 

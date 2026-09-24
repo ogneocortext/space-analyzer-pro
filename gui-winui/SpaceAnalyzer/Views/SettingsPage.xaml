@@ -104,6 +104,18 @@
                                     ToolTipService.ToolTip="Number of folder levels to descend when scanning (1–20)."/>
                             <TextBlock Text="{x:Bind VM.ScanDepth, Mode=OneWay}"
                                         Style="{StaticResource Type.Caption}"/>
+
+                            <TextBlock Text="Scans kept per folder" Style="{StaticResource Type.FieldHeading}"/>
+                            <Slider Minimum="1"
+                                    Maximum="100"
+                                    Value="{x:Bind VM.MaxScansPerPath, Mode=TwoWay}"
+                                    StepFrequency="1"
+                                    TickFrequency="9"
+                                    Width="300"
+                                    ToolTipService.ToolTip="How many scan-history records to keep per folder (1–100). Oldest are pruned automatically to keep the database compact."/>
+                            <TextBlock Text="{x:Bind VM.MaxScansPerPath, Mode=OneWay}" FontWeight="SemiBold"/>
+                            <TextBlock Text="History retention: the newest scans per folder are kept; older ones are pruned on the next scan to reclaim storage."
+                                        Style="{StaticResource Type.Caption}" TextWrapping="Wrap"/>
                         </StackPanel>
 
                         <!-- Advanced scanner options -->

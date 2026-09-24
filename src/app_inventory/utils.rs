@@ -105,8 +105,8 @@ pub fn human_bytes(n: u64) -> String {
 
 #[cfg(windows)]
 pub fn collect_registry_apps() -> Vec<AppInstance> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let mut out = Vec::new();
     let hives = [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER];
@@ -440,8 +440,8 @@ pub fn collect_docker() -> Vec<AppInstance> {
 pub fn docker_wsl_vhdx_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
 
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
     if let Ok(lxss) = RegKey::predef(HKEY_CURRENT_USER)
         .open_subkey_with_flags(r"Software\Microsoft\Windows\CurrentVersion\Lxss", KEY_READ)
     {

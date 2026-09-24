@@ -49,7 +49,7 @@ pub fn parse_stream(
                 return futures::stream::iter(vec![Err(OllamaError::ParseError(format!(
                     "Invalid UTF-8 in stream: {}",
                     e
-                )))])
+                )))]);
             }
         };
 

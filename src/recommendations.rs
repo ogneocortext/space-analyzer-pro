@@ -117,11 +117,7 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
 
     // Use the category aggregate (accurate total) rather than summing the
     // top-N largest_files, which undershoots when the file cap excludes blobs.
-    let ollama_size: u64 = result
-        .category_sizes
-        .get("AI Models")
-        .copied()
-        .unwrap_or(0);
+    let ollama_size: u64 = result.category_sizes.get("AI Models").copied().unwrap_or(0);
     if ollama_size > 1024 * 1024 * 1024 {
         recs.push((
             2,
@@ -342,7 +338,11 @@ pub fn build_recommendations(result: &ScanReport) -> Vec<Recommendation> {
 
     let mut recs: Vec<Recommendation> = recs
         .into_iter()
-        .map(|(priority, message, tier)| Recommendation { priority, message, tier: tier.to_string() })
+        .map(|(priority, message, tier)| Recommendation {
+            priority,
+            message,
+            tier: tier.to_string(),
+        })
         .collect();
     // Sort once, here, so every consumer (CLI, dashboard, agent) agrees on
     // the order of the same advice.

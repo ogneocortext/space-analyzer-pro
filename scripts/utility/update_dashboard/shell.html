@@ -23,6 +23,7 @@
         <button id="scanBtn" class="gen-btn">Refresh</button>
         <span id="scanSpinner" class="spinner" hidden></span>
         <span id="scanStatus" class="ts" aria-live="polite"></span>
+        <span id="freshBadge" class="fresh-badge" hidden></span>
       </div>
       <div class="tb-right">
         <label class="selall tbar-selall"><input type="checkbox" id="selectAll"> Select all</label>
@@ -70,20 +71,20 @@
       <div class="mermaid" id="diagram">flowchart TB
   subgraph WINUI["WinUI 3 Desktop App (C# / .NET)"]
     direction TB
-    PAGES["Pages / Views<br/>Dashboard · Scan · History · Duplicates<br/>Smart Search · AI Assistant · Workflows<br/>Settings · System · Cleanup · USN · Installed Apps"]
+    PAGES["Pages / Views<br/>Dashboard · Scan · History · Duplicates<br/>Smart Search · AI Assistant · Workflows<br/>Settings · System · Cleanup · USN<br/>Installed Apps · About"]
     VM["ViewModels (MVVM)"]
-    SVC["Services<br/>ScannerService · ToolExecutor · OllamaClient"]
+    SVC["Services<br/>ScannerService · ToolExecutor · OllamaClient<br/>SettingsStore · ScanActivityMonitor"]
     PAGES --> VM --> SVC
   end
   subgraph RUST["Rust Core (space-analyzer-cli)"]
     direction TB
-    CLI["CLI Subcommands<br/>scan · disk-info · history · dedup<br/>app-inventory · db · settings · search<br/>embed · semantic-search · usn · bloat<br/>predict · recommendations · dependencies"]
-    MOD["Library Modules<br/>scan-engine · gpu-compute · database<br/>ollama · system-monitor · app_inventory"]
+    CLI["CLI Subcommands<br/>scan · disk-info · history · dedup<br/>app-inventory · db · settings · search<br/>embed · semantic-search · usn<br/>bloat · predict · recommend · ask<br/>dependencies"]
+    MOD["Library Modules<br/>scan-engine · gpu-compute · database<br/>ollama · system-monitor · app_inventory<br/>origin_tracer · tool_registry · workflows<br/>embedding_service · offline_ai"]
     CLI --> MOD
   end
   subgraph LOCAL["Local Services"]
-    OLL["Ollama (localhost:11434)<br/>chat + nomic-embed-text"]
-    SQL["SQLite DB<br/>scan_history · file_embeddings<br/>semantic_index · settings"]
+    OLL["Ollama (localhost:11434)<br/>chat + nomic-embed-text:v1.5"]
+    SQL["SQLite DB<br/>scan_history · file_embeddings<br/>settings · disk_space_history<br/>duplicate_analysis · file_cache<br/>workflow_executions"]
   end
   subgraph DASH["Testing Dashboards (Python)"]
     direction TB
@@ -106,19 +107,19 @@
   SVC --> REC</div>
       <pre id="fallback" style="display:none">flowchart TB
   subgraph WINUI["WinUI 3 Desktop App (C# / .NET)"]
-    PAGES["Pages / Views"]
+    PAGES["Pages / Views (13, incl. About)"]
     VM["ViewModels (MVVM)"]
-    SVC["Services: ScannerService · ToolExecutor · OllamaClient"]
+    SVC["Services: ScannerService · ToolExecutor · OllamaClient · SettingsStore · ScanActivityMonitor"]
     PAGES --> VM --> SVC
   end
   subgraph RUST["Rust Core (space-analyzer-cli)"]
-    CLI["CLI Subcommands"]
-    MOD["Library Modules: scan-engine · gpu-compute · database · ollama · system-monitor · app_inventory"]
+    CLI["CLI Subcommands: scan · disk-info · history · dedup · app-inventory · db · settings · search · embed · semantic-search · usn · bloat · predict · recommend · ask · dependencies"]
+    MOD["Library Modules: scan-engine · gpu-compute · database · ollama · system-monitor · app_inventory · origin_tracer · tool_registry · workflows · embedding_service · offline_ai"]
     CLI --> MOD
   end
   subgraph LOCAL["Local Services"]
-    OLL["Ollama (localhost:11434)"]
-    SQL["SQLite DB"]
+    OLL["Ollama (localhost:11434) chat + nomic-embed-text:v1.5"]
+    SQL["SQLite DB: scan_history · file_embeddings · settings · disk_space_history · duplicate_analysis · file_cache · workflow_executions"]
   end
   subgraph DASH["Testing Dashboards (Python)"]
     UPD["Update Dashboard :3847 (this shell)"]

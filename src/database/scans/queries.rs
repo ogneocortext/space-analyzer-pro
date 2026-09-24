@@ -93,8 +93,10 @@ impl Database {
     }
 
     /// Trim history for a single path down to the newest
-    /// [`MAX_SCANS_PER_PATH`] records. Old records are deleted along with any
-    /// orphaned duplicate-analysis/embedding rows that referenced them.
+    /// `max_scans_per_path` records (the user-configurable retention window;
+    /// falls back to [`MAX_SCANS_PER_PATH`] when the setting is absent or
+    /// invalid). Old records are deleted along with any orphaned
+    /// duplicate-analysis/embedding rows that referenced them.
     fn prune_path_overflow(&self, path: &str) -> rusqlite::Result<()> {
         // Index-only rows (created by `embed` with no real scan) are excluded
         // from the per-path slot count so they neither displace real scans nor
@@ -104,9 +106,27 @@ impl Database {
              WHERE path = ?1 AND (is_index_only = 0 OR is_index_only IS NULL) AND id NOT IN (
                  SELECT id FROM scan_history WHERE path = ?1 AND (is_index_only = 0 OR is_index_only IS NULL) ORDER BY id DESC LIMIT ?2
              )",
-            params![path, MAX_SCANS_PER_PATH as i64],
+            params![path, self.effective_max_scans_per_path()],
         )?;
         self.cleanup_orphaned_scan_data()
+    }
+
+    /// Effective per-path scan-history retention: the `max_scans_per_path`
+    /// setting when it parses to a positive integer, otherwise the built-in
+    /// [`MAX_SCANS_PER_PATH`] default. Read directly from the settings table
+    /// (not via `load_settings`) so the hot insert path stays cheap and does
+    /// not depend on settings-parsing drift.
+    fn effective_max_scans_per_path(&self) -> i64 {
+        self.conn
+            .query_row(
+                "SELECT value FROM settings WHERE key = 'max_scans_per_path'",
+                [],
+                |r| r.get::<_, String>(0),
+            )
+            .ok()
+            .and_then(|v| v.parse::<i64>().ok())
+            .filter(|&n| n >= 1)
+            .unwrap_or(MAX_SCANS_PER_PATH as i64)
     }
 
     /// Remove duplicate scan records, keeping only the newest entry per
@@ -309,7 +329,9 @@ impl Database {
             (Some(s), true) => {
                 let pattern = format!("%{}%", s.replace('\'', "''"));
                 (
-                    format!("SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause}"),
+                    format!(
+                        "SELECT COUNT(*) FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause}"
+                    ),
                     format!(
                         "SELECT {columns} FROM scan_history WHERE path LIKE ?1 {and_idx} AND {dup_clause} ORDER BY {order_clause} LIMIT ?2 OFFSET ?3"
                     ),
@@ -475,7 +497,8 @@ impl Database {
             )
         } else {
             (
-                "SELECT COUNT(DISTINCT file_path) FROM file_cache WHERE file_path LIKE ?1".to_string(),
+                "SELECT COUNT(DISTINCT file_path) FROM file_cache WHERE file_path LIKE ?1"
+                    .to_string(),
                 "SELECT file_path, MAX(size_bytes) AS size_bytes, MAX(mtime_unix) AS mtime_unix, \
                         MAX(extension) AS extension, COUNT(DISTINCT scan_path) AS scan_count, \
                         GROUP_CONCAT(DISTINCT scan_path) AS source_paths \
@@ -494,24 +517,28 @@ impl Database {
         let total: i64 = if count_params.is_empty() {
             self.conn.query_row(&count_sql, [], |row| row.get(0))?
         } else {
-            self.conn
-                .query_row(&count_sql, rusqlite::params_from_iter(count_params.iter().map(|b| &**b)), |row| {
-                    row.get(0)
-                })?
+            self.conn.query_row(
+                &count_sql,
+                rusqlite::params_from_iter(count_params.iter().map(|b| &**b)),
+                |row| row.get(0),
+            )?
         };
 
         let mut stmt = self.conn.prepare(&query_sql)?;
         let rows = stmt
-            .query_map(rusqlite::params_from_iter(query_params.iter().map(|b| &**b)), |row| {
-                Ok(MergedFileEntry {
-                    file_path: row.get(0)?,
-                    size_bytes: row.get::<_, i64>(1)? as u64,
-                    mtime_unix: row.get::<_, i64>(2)?,
-                    extension: row.get(3)?,
-                    scan_count: row.get::<_, i64>(4)? as usize,
-                    source_paths: row.get(5)?,
-                })
-            })?
+            .query_map(
+                rusqlite::params_from_iter(query_params.iter().map(|b| &**b)),
+                |row| {
+                    Ok(MergedFileEntry {
+                        file_path: row.get(0)?,
+                        size_bytes: row.get::<_, i64>(1)? as u64,
+                        mtime_unix: row.get::<_, i64>(2)?,
+                        extension: row.get(3)?,
+                        scan_count: row.get::<_, i64>(4)? as usize,
+                        source_paths: row.get(5)?,
+                    })
+                },
+            )?
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         Ok((rows, total))
@@ -891,15 +918,61 @@ mod tests {
     }
 
     #[test]
+    fn save_scan_honors_configured_max_scans_per_path() {
+        let db = test_db();
+        // A tight retention window set by the user via `settings set`.
+        db.upsert_settings(&[("max_scans_per_path", "3".to_string())])
+            .unwrap();
+        for _ in 0..6 {
+            insert_scan(&db, "C:\\tight", 500, 5);
+        }
+        insert_scan(&db, "D:\\other", 500, 5);
+        db.prune_path_overflow("C:\\tight").unwrap();
+
+        let kept: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM scan_history WHERE path = 'C:\\tight'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(kept, 3, "retention must follow the configured window");
+        assert_eq!(count(&db), 4, "other paths are unaffected");
+    }
+
+    #[test]
+    fn invalid_max_scans_per_path_falls_back_to_default() {
+        let db = test_db();
+        db.upsert_settings(&[("max_scans_per_path", "not-a-number".to_string())])
+            .unwrap();
+        let max = MAX_SCANS_PER_PATH as i64;
+        for _ in 0..(max + 2) {
+            insert_scan(&db, "C:\\fallback", 500, 5);
+        }
+        db.prune_path_overflow("C:\\fallback").unwrap();
+        let kept: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM scan_history WHERE path = 'C:\\fallback'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            kept, max,
+            "an unparseable setting must fall back to the built-in default"
+        );
+    }
+
+    #[test]
     fn get_scan_history_page_only_duplicates() {
         let db = test_db();
         insert_scan(&db, "C:\\dup", 100, 5);
         insert_scan(&db, "C:\\dup", 200, 6);
         insert_scan(&db, "C:\\unique", 300, 7);
 
-        let (all, total_all) = db
-            .get_scan_history_page(HistoryPageQuery::new(50))
-            .unwrap();
+        let (all, total_all) = db.get_scan_history_page(HistoryPageQuery::new(50)).unwrap();
         assert_eq!(total_all, 3);
         assert_eq!(all.len(), 3);
 
@@ -926,9 +999,7 @@ mod tests {
             )
             .unwrap();
 
-        let (all, total) = db
-            .get_scan_history_page(HistoryPageQuery::new(50))
-            .unwrap();
+        let (all, total) = db.get_scan_history_page(HistoryPageQuery::new(50)).unwrap();
         assert_eq!(total, 1, "index-only anchor must be excluded by default");
         assert!(all.iter().all(|r| !r.is_index_only));
 
@@ -986,24 +1057,30 @@ mod tests {
         insert_scan(&db, "C:\\once", 14, 1);
 
         // Page size 2 → only the two newest "C:\\busy" scans land on page 0.
-        let (page0, total) = db
-            .get_scan_history_page(HistoryPageQuery::new(2))
-            .unwrap();
+        let (page0, total) = db.get_scan_history_page(HistoryPageQuery::new(2)).unwrap();
         assert_eq!(total, 4);
         assert_eq!(page0.len(), 2);
         // Even though only 2 of the 3 "C:\\busy" scans are on this page, every
         // row must report the true count across all history (3), not 2.
-        assert!(page0.iter().all(|r| r.path.eq_ignore_ascii_case("C:\\busy")));
+        assert!(
+            page0
+                .iter()
+                .all(|r| r.path.eq_ignore_ascii_case("C:\\busy"))
+        );
         assert!(page0.iter().all(|r| r.duplicate_count == 3));
 
         // A single full page must also report 3 for each "C:\\busy" row and 1
         // for the unique folder.
-        let (all, _) = db
-            .get_scan_history_page(HistoryPageQuery::new(50))
+        let (all, _) = db.get_scan_history_page(HistoryPageQuery::new(50)).unwrap();
+        let busy = all
+            .iter()
+            .find(|r| r.path.eq_ignore_ascii_case("C:\\busy"))
             .unwrap();
-        let busy = all.iter().find(|r| r.path.eq_ignore_ascii_case("C:\\busy")).unwrap();
         assert_eq!(busy.duplicate_count, 3);
-        let once = all.iter().find(|r| r.path.eq_ignore_ascii_case("C:\\once")).unwrap();
+        let once = all
+            .iter()
+            .find(|r| r.path.eq_ignore_ascii_case("C:\\once"))
+            .unwrap();
         assert_eq!(once.duplicate_count, 1);
     }
 
@@ -1073,9 +1150,7 @@ mod tests {
             )
             .unwrap();
 
-        let (rows, total) = db
-            .get_scan_history_page(HistoryPageQuery::new(50))
-            .unwrap();
+        let (rows, total) = db.get_scan_history_page(HistoryPageQuery::new(50)).unwrap();
         assert_eq!(total, 2, "index-only anchor excluded by default");
         let newest = rows.iter().find(|r| r.total_size_bytes == 150).unwrap();
         assert_eq!(
@@ -1103,8 +1178,7 @@ mod tests {
             ("Caution".to_string(), 300),
             ("Keep".to_string(), 500),
         ]);
-        report.category_reclaimable =
-            HashMap::from([("Development".to_string(), 150)]);
+        report.category_reclaimable = HashMap::from([("Development".to_string(), 150)]);
 
         let id = db.save_scan(&report, false, false, 5).unwrap();
         let got = db.get_scan_by_id(id).unwrap().expect("row");
@@ -1140,14 +1214,29 @@ mod tests {
         db.save_file_cache(
             "C:\\a",
             &[
-                ("C:\\a\\x.txt".to_string(), 100u64, 111i64, "txt".to_string()),
-                ("C:\\a\\y.txt".to_string(), 200u64, 222i64, "txt".to_string()),
+                (
+                    "C:\\a\\x.txt".to_string(),
+                    100u64,
+                    111i64,
+                    "txt".to_string(),
+                ),
+                (
+                    "C:\\a\\y.txt".to_string(),
+                    200u64,
+                    222i64,
+                    "txt".to_string(),
+                ),
             ],
         )
         .unwrap();
         db.save_file_cache(
             "D:\\backup",
-            &[("C:\\a\\x.txt".to_string(), 150u64, 333i64, "txt".to_string())],
+            &[(
+                "C:\\a\\x.txt".to_string(),
+                150u64,
+                333i64,
+                "txt".to_string(),
+            )],
         )
         .unwrap();
 

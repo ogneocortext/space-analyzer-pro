@@ -1,5 +1,6 @@
 // Licensed under the MIT License.
 
+using System;
 using System.Globalization;
 using SpaceAnalyzer.Services;
 
@@ -29,6 +30,7 @@ public static class AppSettings
         public const string Theme = "Dark";
         public const string ScannerPath = "";
         public const double ScanDepth = 5;
+        public const double MaxScansPerPath = 20;
         public const bool IncludeHidden = false;
         public const bool GpuAcceleration = true;
         public const bool UseFileCache = true;
@@ -71,6 +73,24 @@ public static class AppSettings
             return double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : Defaults.ScanDepth;
         }
         set => SettingsStore.Set(SettingKeys.ScanDepth, value.ToString(CultureInfo.InvariantCulture));
+    }
+
+    public static double MaxScansPerPath
+    {
+        get
+        {
+            var raw = SettingsStore.Get(SettingKeys.MaxScansPerPath);
+            return double.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : Defaults.MaxScansPerPath;
+        }
+        set
+        {
+            // Round to a whole number so the value stored in the DB is always a
+            // parseable integer for the Rust retention logic (a fractional string
+            // would fall back to the built-in default).
+            var rounded = (int)Math.Round(value, MidpointRounding.AwayFromZero);
+            if (rounded < 1) rounded = 1;
+            SettingsStore.Set(SettingKeys.MaxScansPerPath, rounded.ToString(CultureInfo.InvariantCulture));
+        }
     }
 
     public static bool IncludeHidden
@@ -177,6 +197,7 @@ public static class AppSettings
         Theme = Defaults.Theme;
         ScannerPath = Defaults.ScannerPath;
         ScanDepth = Defaults.ScanDepth;
+        MaxScansPerPath = Defaults.MaxScansPerPath;
         IncludeHidden = Defaults.IncludeHidden;
         GpuAcceleration = Defaults.GpuAcceleration;
         UseFileCache = Defaults.UseFileCache;

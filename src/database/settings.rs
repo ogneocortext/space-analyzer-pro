@@ -8,6 +8,9 @@ pub struct AppSettings {
     pub default_deep_scan: bool,
     pub max_scan_depth: u32,
     pub large_file_threshold_mb: u64,
+    /// Rolling retention window for scan history: how many scans of the same
+    /// path are kept before the oldest are pruned on insert.
+    pub max_scans_per_path: usize,
 
     // GPU / CUDA Settings
     pub gpu_acceleration: bool,
@@ -59,6 +62,7 @@ impl Default for AppSettings {
             default_deep_scan: false,
             max_scan_depth: 5,
             large_file_threshold_mb: 100,
+            max_scans_per_path: 20,
             gpu_acceleration: true,
             cuda_enabled: false,
             dedup_use_gpu: true,
@@ -135,6 +139,9 @@ impl super::Database {
                                 "large_file_threshold_mb" => {
                                     settings.large_file_threshold_mb =
                                         parse_positive(&value, 100, 1)
+                                }
+                                "max_scans_per_path" => {
+                                    settings.max_scans_per_path = parse_positive(&value, 20, 1)
                                 }
                                 "gpu_acceleration" => settings.gpu_acceleration = value == "true",
                                 "cuda_enabled" => settings.cuda_enabled = value == "true",
@@ -273,6 +280,10 @@ impl super::Database {
             (
                 "large_file_threshold_mb",
                 settings.large_file_threshold_mb.to_string(),
+            ),
+            (
+                "max_scans_per_path",
+                settings.max_scans_per_path.to_string(),
             ),
             ("gpu_acceleration", settings.gpu_acceleration.to_string()),
             ("cuda_enabled", settings.cuda_enabled.to_string()),
@@ -479,6 +490,7 @@ mod tests {
             ("large_file_threshold_mb", "0".to_string()),
             ("embedding_batch_size", "0".to_string()),
             ("prompt_cache_max_entries", "0".to_string()),
+            ("max_scans_per_path", "0".to_string()),
         ])
         .unwrap();
         let s = db.load_settings();
@@ -489,6 +501,21 @@ mod tests {
         assert_eq!(s.large_file_threshold_mb, 1);
         assert_eq!(s.embedding_batch_size, 1);
         assert_eq!(s.prompt_cache_max_entries, 1);
+        assert_eq!(
+            s.max_scans_per_path, 1,
+            "retention 0 must clamp to 1, not wipe history"
+        );
+    }
+
+    #[test]
+    fn load_accepts_configured_max_scans_per_path() {
+        let db = test_db();
+        db.upsert_settings(&[("max_scans_per_path", "5".to_string())])
+            .unwrap();
+        let s = db.load_settings();
+        assert_eq!(s.max_scans_per_path, 5);
+        // The default must match the documented built-in retention window.
+        assert_eq!(AppSettings::default().max_scans_per_path, 20);
     }
 
     #[test]

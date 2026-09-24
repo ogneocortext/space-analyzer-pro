@@ -1,8 +1,8 @@
-use crate::animation::{display_width, SECTION_WIDTH};
+use crate::animation::{SECTION_WIDTH, display_width};
 use crate::cli::types::{InstallerCategory, InstallerGroup, ScanReport};
 use crate::hprintln;
-use space_analyzer_pro_desktop::recommendations::{is_installer, Recommendation};
 use scan_engine::format_bytes;
+use space_analyzer_pro_desktop::recommendations::{Recommendation, is_installer};
 
 pub fn pct_of(part: u64, total: u64) -> f64 {
     if total > 0 {
@@ -283,6 +283,9 @@ mod tests {
             });
         // Directory totals win; the file list is only a fallback, so the two
         // renderers can never disagree.
-        assert_eq!(space_analyzer_pro_desktop::recommendations::node_modules_bytes(&result), 500);
+        assert_eq!(
+            space_analyzer_pro_desktop::recommendations::node_modules_bytes(&result),
+            500
+        );
     }
 }

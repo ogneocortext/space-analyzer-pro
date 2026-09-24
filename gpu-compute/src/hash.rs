@@ -129,9 +129,9 @@ impl BatchHasher {
 
     #[cfg(feature = "cuda")]
     fn hash_batch_on_gpu(batch: &[(PathBuf, Vec<u8>)]) -> Result<Vec<HashResult>> {
-            use cudarc::driver::CudaContext;
+        use cudarc::driver::CudaContext;
 
-            let _dev = CudaContext::new(0)?;
+        let _dev = CudaContext::new(0)?;
 
         // BLAKE3 CUDA kernel (simplified parallel hash kernel)
         // In production, this would load a pre-compiled .ptx file

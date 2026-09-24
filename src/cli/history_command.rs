@@ -2,13 +2,13 @@ use crate::cli::args::OutputFormat;
 use scan_engine::format_bytes;
 use space_analyzer_pro_desktop::database::Database;
 use space_analyzer_pro_desktop::database::HistoryPageQuery;
-use std::io::IsTerminal;
 use space_analyzer_pro_desktop::database::ScanHistoryRecord;
 use space_analyzer_pro_desktop::error::AppResult;
 use space_analyzer_pro_desktop::gui_common::LargestFileEntry;
 use space_analyzer_pro_desktop::ollama::client::OllamaClient;
 use space_analyzer_pro_desktop::ollama::models::{ScanSummaryInput, ScanSummaryOutput};
 use space_analyzer_pro_desktop::ollama::summary::summarize_scan;
+use std::io::IsTerminal;
 
 #[allow(clippy::too_many_arguments)]
 pub fn handle_history(
@@ -69,7 +69,10 @@ pub fn handle_history(
                         "limit": limit,
                         "offset": offset,
                     });
-                    println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    );
                 }
                 Err(e) => {
                     if output_format == OutputFormat::Json {
@@ -92,7 +95,10 @@ pub fn handle_history(
                             .map(|(day, count)| serde_json::json!({ "date": day, "count": count }))
                             .collect::<Vec<_>>(),
                     });
-                    println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&response).unwrap_or_default()
+                    );
                 }
                 Err(e) => {
                     if output_format == OutputFormat::Json {
@@ -406,17 +412,46 @@ fn grouped(n: u64) -> String {
 /// Human-readable console table for the scan-history list — the `--format text`
 /// default. Mirrors the HistoryPage cards: id, when, path, file/size totals, the
 /// Safe/Caution/Keep reclaim tiers, and duplicate / embeddings-only markers.
-fn render_history_page_text(records: &[ScanHistoryRecord], total: i64, limit: usize, offset: usize) {
+fn render_history_page_text(
+    records: &[ScanHistoryRecord],
+    total: i64,
+    limit: usize,
+    offset: usize,
+) {
     if records.is_empty() {
         println!("No scan history found.");
         return;
     }
 
     let tty = std::io::stdout().is_terminal();
-    let dim = |s: &str| if tty { format!("\x1b[2m{s}\x1b[0m") } else { s.to_string() };
-    let green = |s: &str| if tty { format!("\x1b[32m{s}\x1b[0m") } else { s.to_string() };
-    let yellow = |s: &str| if tty { format!("\x1b[33m{s}\x1b[0m") } else { s.to_string() };
-    let red = |s: &str| if tty { format!("\x1b[31m{s}\x1b[0m") } else { s.to_string() };
+    let dim = |s: &str| {
+        if tty {
+            format!("\x1b[2m{s}\x1b[0m")
+        } else {
+            s.to_string()
+        }
+    };
+    let green = |s: &str| {
+        if tty {
+            format!("\x1b[32m{s}\x1b[0m")
+        } else {
+            s.to_string()
+        }
+    };
+    let yellow = |s: &str| {
+        if tty {
+            format!("\x1b[33m{s}\x1b[0m")
+        } else {
+            s.to_string()
+        }
+    };
+    let red = |s: &str| {
+        if tty {
+            format!("\x1b[31m{s}\x1b[0m")
+        } else {
+            s.to_string()
+        }
+    };
 
     // Pad a possibly-colored cell using its *visible* (ANSI-stripped) length so
     // colors never break column alignment.
@@ -504,8 +539,16 @@ fn render_history_page_text(records: &[ScanHistoryRecord], total: i64, limit: us
         };
         let path_p = pad_vis(&path_cell, path_vis, path_w);
 
-        let files_p = format!("{:>width$}", grouped(rec.total_files as u64), width = files_w);
-        let size_p = format!("{:>width$}", format_bytes(rec.total_size_bytes), width = size_w);
+        let files_p = format!(
+            "{:>width$}",
+            grouped(rec.total_files as u64),
+            width = files_w
+        );
+        let size_p = format!(
+            "{:>width$}",
+            format_bytes(rec.total_size_bytes),
+            width = size_w
+        );
 
         // Reclaim tiers (Safe / Caution / Keep).
         let (safe, caution, keep) = parse_reclaim_tiers(&rec.reclaim_tier_sizes_json);
@@ -556,7 +599,9 @@ fn render_history_page_text(records: &[ScanHistoryRecord], total: i64, limit: us
     );
     println!(
         "{}",
-        dim("Safe = safe to delete · Caution = review · Keep = leave · [idx] = embeddings-only anchor")
+        dim(
+            "Safe = safe to delete · Caution = review · Keep = leave · [idx] = embeddings-only anchor"
+        )
     );
 }
 

@@ -88,6 +88,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         set { if (AppSettings.ScanDepth == value) return; AppSettings.ScanDepth = value; OnPropertyChanged(); }
     }
 
+    public double MaxScansPerPath
+    {
+        get => AppSettings.MaxScansPerPath;
+        set { if (AppSettings.MaxScansPerPath == value) return; AppSettings.MaxScansPerPath = value; OnPropertyChanged(); }
+    }
+
     public bool IncludeHidden
     {
         get => AppSettings.IncludeHidden;

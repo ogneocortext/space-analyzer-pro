@@ -9,11 +9,11 @@ pub mod scanner;
 pub mod types;
 
 pub use categories::{
-    category_for_extension, classify_reclaimability, extension_to_category, ReclaimTier,
+    ReclaimTier, category_for_extension, classify_reclaimability, extension_to_category,
 };
 pub use formatting::{format_bytes, format_duration, size_bucket};
-pub use scanner::get_system_info;
 pub use scanner::FileScanner;
+pub use scanner::get_system_info;
 pub use types::{
     DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,
     SystemInfo,

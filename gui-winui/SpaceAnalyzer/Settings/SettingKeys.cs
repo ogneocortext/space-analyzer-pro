@@ -18,6 +18,10 @@ public static class SettingKeys
     // ── Scanner ──
     public const string ScannerPath = "scanner_path";
     public const string ScanDepth = "scan_depth";
+    /// Same key as the Rust core's `max_scans_per_path` setting (rolling
+    /// per-path scan-history retention window). Shared so the value set in the
+    /// GUI is read directly by the scan-save retention logic.
+    public const string MaxScansPerPath = "max_scans_per_path";
     public const string IncludeHidden = "include_hidden";
     public const string GpuAcceleration = "gpu_acceleration";
     public const string UseFileCache = "use_file_cache";

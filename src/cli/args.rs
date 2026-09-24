@@ -209,8 +209,10 @@ pub enum Commands {
         stream: bool,
 
         /// Emit `__PROGRESS__<json>` progress lines on stderr for host processes
-        /// (off by default so interactive runs stay quiet)
-        #[arg(long, conflicts_with = "stream")]
+        /// (off by default so interactive runs stay quiet). This is independent of
+        /// `--stream`, so both can be enabled at once: JSONL scan data stays on stdout
+        /// while progress events go to stderr.
+        #[arg(long)]
         progress_json: bool,
 
         /// Append machine-readable progress events (one JSON object per line) to

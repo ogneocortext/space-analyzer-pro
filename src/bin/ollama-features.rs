@@ -27,8 +27,8 @@ use space_analyzer_pro_desktop::ollama::screenshot::describe_screenshot;
 use space_analyzer_pro_desktop::ollama::semantic::semantic_search;
 use space_analyzer_pro_desktop::ollama::summary::summarize_scan;
 use space_analyzer_pro_desktop::ollama::{
-    OllamaClient, OllamaClientBuilder, OperationTimeouts, ToolDefinition, ToolParameters,
-    SYSTEM_PROMPT_ANALYSIS,
+    OllamaClient, OllamaClientBuilder, OperationTimeouts, SYSTEM_PROMPT_ANALYSIS, ToolDefinition,
+    ToolParameters,
 };
 
 const DEFAULT_URL: &str = "http://127.0.0.1:11434";

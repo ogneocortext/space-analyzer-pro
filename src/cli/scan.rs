@@ -11,7 +11,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use super::live_scan::LiveProgress;
-use super::types::{CompleteEvent, DirDrillDown, DirEntry, FileInfoStreaming, ProgressEvent, ScanReport, StreamEvent};
+use super::types::{
+    CompleteEvent, DirDrillDown, DirEntry, FileInfoStreaming, ProgressEvent, ScanReport,
+    StreamEvent,
+};
 use crate::animation;
 
 /// How many of the largest files / top directories to persist in a saved scan
@@ -232,7 +235,12 @@ pub fn scan_directory(
                     (path.clone(), size, mtime, ext)
                 })
                 .collect();
-            let _ = db.save_file_cache(&cache_key, &entries);
+            let _ = db.save_file_cache(&cache_key, &entries).map_err(|e| {
+                eprintln!(
+                    "⚠️ Could not save incremental file cache '{}': {}",
+                    cache_key, e
+                )
+            });
         }
     }
 
@@ -320,7 +328,13 @@ pub fn scan_directory(
         for dir in result.top_directories.iter().take(drill) {
             let (children, largest) = drill_directory(&dir.path);
             if !children.is_empty() || !largest.is_empty() {
-                drill_down.insert(dir.path.clone(), DirDrillDown { children, largest_files: largest });
+                drill_down.insert(
+                    dir.path.clone(),
+                    DirDrillDown {
+                        children,
+                        largest_files: largest,
+                    },
+                );
             }
         }
         result.drill_down = drill_down;
@@ -339,7 +353,11 @@ pub fn scan_directory(
     // which the scanner now computes directly instead of the old lossy heuristic
     // that only counted .tmp/.cache/.log extensions and installer archives.
     let safe = result.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0);
-    let caution = result.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0);
+    let caution = result
+        .reclaim_tier_sizes
+        .get("Caution")
+        .copied()
+        .unwrap_or(0);
     result.potential_cleanup_bytes = safe + caution;
     result.timestamp = chrono::Utc::now().to_rfc3339();
 
@@ -393,9 +411,7 @@ pub fn scan_directory(
                     .map(|file| LargestFileEntry::new(file.path.clone(), file.size))
                     .collect();
             }
-            if history_report.top_directories.len() < SAVE_HISTORY_TOP_N
-                && !top_dirs.is_empty()
-            {
+            if history_report.top_directories.len() < SAVE_HISTORY_TOP_N && !top_dirs.is_empty() {
                 history_report.top_directories =
                     top_dirs.iter().take(SAVE_HISTORY_TOP_N).cloned().collect();
             }

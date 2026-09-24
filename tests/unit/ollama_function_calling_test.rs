@@ -151,7 +151,9 @@ async fn live_ollama_function_call_roundtrip() {
     );
 
     let messages = vec![
-        ChatMessage::system("You are a concise assistant. Call get_disk_volumes when asked about disk space, then summarize the result in one short sentence."),
+        ChatMessage::system(
+            "You are a concise assistant. Call get_disk_volumes when asked about disk space, then summarize the result in one short sentence.",
+        ),
         ChatMessage::user("How much disk space do I have?"),
     ];
 

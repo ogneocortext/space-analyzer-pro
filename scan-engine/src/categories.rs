@@ -1,5 +1,5 @@
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Reclaimability tier used to surface *actionable* storage — what the user can
 /// actually delete to reclaim space — instead of only a storage taxonomy.
@@ -224,7 +224,11 @@ mod tests {
     #[test]
     fn node_modules_in_project_is_safe() {
         assert_eq!(
-            classify_reclaimability("js", "c:\\users\\dev\\project\\node_modules\\foo\\index.js", "Code"),
+            classify_reclaimability(
+                "js",
+                "c:\\users\\dev\\project\\node_modules\\foo\\index.js",
+                "Code"
+            ),
             ReclaimTier::Safe
         );
     }
@@ -232,7 +236,11 @@ mod tests {
     #[test]
     fn node_modules_in_vscode_extensions_is_keep() {
         assert_eq!(
-            classify_reclaimability("js", "c:\\users\\dev\\.vscode\\extensions\\esbenp.prettier-vscode-12.4.0\\node_modules\\prettier\\index.js", "Code"),
+            classify_reclaimability(
+                "js",
+                "c:\\users\\dev\\.vscode\\extensions\\esbenp.prettier-vscode-12.4.0\\node_modules\\prettier\\index.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -240,7 +248,11 @@ mod tests {
     #[test]
     fn node_modules_in_global_npm_is_keep() {
         assert_eq!(
-            classify_reclaimability("js", "c:\\npm\\node_modules\\@playwright\\mcp\\cli.js", "Code"),
+            classify_reclaimability(
+                "js",
+                "c:\\npm\\node_modules\\@playwright\\mcp\\cli.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -248,7 +260,11 @@ mod tests {
     #[test]
     fn node_modules_in_appdata_roaming_npm_is_keep() {
         assert_eq!(
-            classify_reclaimability("js", "c:\\users\\dev\\appdata\\roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.js", "Code"),
+            classify_reclaimability(
+                "js",
+                "c:\\users\\dev\\appdata\\roaming\\npm\\node_modules\\opencode-ai\\bin\\opencode.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -256,7 +272,11 @@ mod tests {
     #[test]
     fn node_modules_in_fnm_multishells_is_keep() {
         assert_eq!(
-            classify_reclaimability("js", "c:\\users\\dev\\appdata\\local\\fnm_multishells\\1234_5678\\node_modules\\npm\\bin\\npm.js", "Code"),
+            classify_reclaimability(
+                "js",
+                "c:\\users\\dev\\appdata\\local\\fnm_multishells\\1234_5678\\node_modules\\npm\\bin\\npm.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -264,7 +284,11 @@ mod tests {
     #[test]
     fn program_files_is_keep() {
         assert_eq!(
-            classify_reclaimability("exe", "c:\\program files\\someapp\\resources\\node_modules\\foo.js", "Code"),
+            classify_reclaimability(
+                "exe",
+                "c:\\program files\\someapp\\resources\\node_modules\\foo.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -272,7 +296,11 @@ mod tests {
     #[test]
     fn program_files_x86_is_keep() {
         assert_eq!(
-            classify_reclaimability("exe", "c:\\program files (x86)\\someapp\\node_modules\\foo.js", "Code"),
+            classify_reclaimability(
+                "exe",
+                "c:\\program files (x86)\\someapp\\node_modules\\foo.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -280,7 +308,11 @@ mod tests {
     #[test]
     fn appdata_local_programs_is_keep() {
         assert_eq!(
-            classify_reclaimability("exe", "c:\\users\\dev\\appdata\\local\\programs\\myapp\\node_modules\\foo.js", "Code"),
+            classify_reclaimability(
+                "exe",
+                "c:\\users\\dev\\appdata\\local\\programs\\myapp\\node_modules\\foo.js",
+                "Code"
+            ),
             ReclaimTier::Keep
         );
     }
@@ -288,7 +320,11 @@ mod tests {
     #[test]
     fn tmp_extension_is_safe() {
         assert_eq!(
-            classify_reclaimability("tmp", "c:\\users\\dev\\appdata\\local\\temp\\abc.tmp", "Other"),
+            classify_reclaimability(
+                "tmp",
+                "c:\\users\\dev\\appdata\\local\\temp\\abc.tmp",
+                "Other"
+            ),
             ReclaimTier::Safe
         );
     }
@@ -296,7 +332,11 @@ mod tests {
     #[test]
     fn target_dir_is_safe() {
         assert_eq!(
-            classify_reclaimability("rlib", "c:\\users\\dev\\project\\target\\release\\deps\\foo.rlib", "Code"),
+            classify_reclaimability(
+                "rlib",
+                "c:\\users\\dev\\project\\target\\release\\deps\\foo.rlib",
+                "Code"
+            ),
             ReclaimTier::Safe
         );
     }
@@ -304,7 +344,11 @@ mod tests {
     #[test]
     fn pycache_is_safe() {
         assert_eq!(
-            classify_reclaimability("pyc", "c:\\users\\dev\\project\\__pycache__\\foo.cpython-311.pyc", "Code"),
+            classify_reclaimability(
+                "pyc",
+                "c:\\users\\dev\\project\\__pycache__\\foo.cpython-311.pyc",
+                "Code"
+            ),
             ReclaimTier::Safe
         );
     }
@@ -312,7 +356,11 @@ mod tests {
     #[test]
     fn ai_models_is_caution() {
         assert_eq!(
-            classify_reclaimability("gguf", "c:\\users\\dev\\.ollama\\models\\blobs\\sha256-abc", "AI Models"),
+            classify_reclaimability(
+                "gguf",
+                "c:\\users\\dev\\.ollama\\models\\blobs\\sha256-abc",
+                "AI Models"
+            ),
             ReclaimTier::Caution
         );
     }
@@ -320,7 +368,11 @@ mod tests {
     #[test]
     fn virtual_disks_is_caution() {
         assert_eq!(
-            classify_reclaimability("vhdx", "c:\\users\\dev\\appdata\\local\\wsl\\data\\ext4.vhdx", "Virtual"),
+            classify_reclaimability(
+                "vhdx",
+                "c:\\users\\dev\\appdata\\local\\wsl\\data\\ext4.vhdx",
+                "Virtual"
+            ),
             ReclaimTier::Caution
         );
     }
@@ -344,7 +396,11 @@ mod tests {
     #[test]
     fn cache_dir_is_safe() {
         assert_eq!(
-            classify_reclaimability("json", "c:\\users\\dev\\.cache\\codex-runtimes\\config.json", "Other"),
+            classify_reclaimability(
+                "json",
+                "c:\\users\\dev\\.cache\\codex-runtimes\\config.json",
+                "Other"
+            ),
             ReclaimTier::Safe
         );
     }
@@ -352,7 +408,11 @@ mod tests {
     #[test]
     fn temp_dir_is_safe() {
         assert_eq!(
-            classify_reclaimability("tmp", "c:\\users\\dev\\appdata\\local\\temp\\installer\\file.tmp", "Other"),
+            classify_reclaimability(
+                "tmp",
+                "c:\\users\\dev\\appdata\\local\\temp\\installer\\file.tmp",
+                "Other"
+            ),
             ReclaimTier::Safe
         );
     }

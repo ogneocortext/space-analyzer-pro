@@ -158,7 +158,10 @@ pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
                 })
                 .collect::<std::collections::HashMap<String, serde_json::Value>>()
         );
-        value.as_object_mut().unwrap().insert("drill_down".to_string(), drill_json);
+        value
+            .as_object_mut()
+            .unwrap()
+            .insert("drill_down".to_string(), drill_json);
     }
     if !result.scanned_files.is_empty() {
         value.as_object_mut().unwrap().insert(
@@ -368,7 +371,8 @@ mod tests {
         r.file_types.insert("rs".into(), 1);
         r.extension_sizes.insert(String::new(), 10);
         r.file_types.insert(String::new(), 1);
-        r.largest_files.push(LargestFileEntry::new("C:/tmp/a.rs".into(), 20));
+        r.largest_files
+            .push(LargestFileEntry::new("C:/tmp/a.rs".into(), 20));
         r
     }
 

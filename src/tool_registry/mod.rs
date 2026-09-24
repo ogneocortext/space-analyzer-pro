@@ -187,11 +187,13 @@ mod tests {
         let v = parse_result(&result);
         assert_eq!(v["path"], "C:\\Users\\test");
         assert_eq!(v["total_files"], 595);
-        assert!(v["largest_files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
+        assert!(
+            v["largest_files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["path"].as_str().unwrap().contains("big_file.zip"))
+        );
     }
 
     #[test]
@@ -252,11 +254,13 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["total_files"], 595);
-        assert!(v["types"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|t| t["extension"] == "pdf" && t["count"] == 150));
+        assert!(
+            v["types"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["extension"] == "pdf" && t["count"] == 150)
+        );
     }
 
     #[test]
@@ -286,10 +290,12 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["count"], 1);
-        assert!(v["results"][0]["path"]
-            .as_str()
-            .unwrap()
-            .contains("report.pdf"));
+        assert!(
+            v["results"][0]["path"]
+                .as_str()
+                .unwrap()
+                .contains("report.pdf")
+        );
     }
 
     #[test]
@@ -322,11 +328,13 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert!(v.get("files").is_some());
-        assert!(v["files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
+        assert!(
+            v["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["path"].as_str().unwrap().contains("big_file.zip"))
+        );
     }
 
     #[test]
@@ -347,26 +355,34 @@ mod tests {
         let result = registry.execute_tool(&call, Some(&scan), None).unwrap();
         let v = parse_result(&result);
         assert_eq!(v["count"], 3);
-        assert!(v["files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["path"].as_str().unwrap().contains("big_file.zip")));
-        assert!(v["files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["path"].as_str().unwrap().contains("large_video.mp4")));
-        assert!(v["files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["path"].as_str().unwrap().contains("dataset.tar.gz")));
-        assert!(!v["files"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|f| f["path"].as_str().unwrap().contains("report.pdf")));
+        assert!(
+            v["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["path"].as_str().unwrap().contains("big_file.zip"))
+        );
+        assert!(
+            v["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["path"].as_str().unwrap().contains("large_video.mp4"))
+        );
+        assert!(
+            v["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["path"].as_str().unwrap().contains("dataset.tar.gz"))
+        );
+        assert!(
+            !v["files"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|f| f["path"].as_str().unwrap().contains("report.pdf"))
+        );
     }
 
     #[test]

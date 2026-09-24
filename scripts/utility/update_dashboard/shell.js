@@ -40,6 +40,7 @@
   var searchInput = document.getElementById('searchInput');
   var banner = document.getElementById('banner');
   var scanSpinner = document.getElementById('scanSpinner');
+  var freshBadge = document.getElementById('freshBadge');
   var allPkgs = [];
   var allProjects = [];
   var projByPath = {};
@@ -48,6 +49,63 @@
   var sortMode = 'default';
   var statusFilter = 'all';
   var searchTerm = '';
+  var lastScanTs = null;
+  var dupPaths = {};
+
+  // ---- Data freshness: show "data from X ago" and color-code staleness ----
+  function parseTs(ts){
+    if (!ts) return null;
+    var d = new Date(String(ts).replace(' ', 'T'));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function relTime(d){
+    var s = Math.max(0, (Date.now() - d.getTime()) / 1000);
+    if (s < 90) return 'just now';
+    var m = s / 60; if (m < 90) return Math.round(m) + ' min ago';
+    var h = m / 60; if (h < 36) return Math.round(h) + ' h ago';
+    var days = Math.round(h / 24);
+    return days + (days === 1 ? ' day ago' : ' days ago');
+  }
+  function freshClass(d){
+    var h = (Date.now() - d.getTime()) / 3600000;
+    if (h < 24) return '';
+    if (h < 72) return 'stale';
+    return 'old';
+  }
+  function updateFreshness(){
+    if (!freshBadge) return;
+    var d = parseTs(lastScanTs);
+    if (!d){ freshBadge.hidden = true; return; }
+    freshBadge.hidden = false;
+    freshBadge.className = 'fresh-badge ' + freshClass(d);
+    freshBadge.textContent = 'Data from ' + relTime(d);
+    freshBadge.title = 'Scan timestamp: ' + lastScanTs + (freshClass(d) ? ' — click Refresh for current versions' : '');
+  }
+  setInterval(updateFreshness, 60000);
+
+  // ---- Duplicate project detection: same normalized name in multiple folders ----
+  function normName(n){ return String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, ''); }
+  function checkDuplicateProjects(projects){
+    dupPaths = {};
+    var groups = {};
+    (projects || []).forEach(function(p){
+      var k = normName(p.name);
+      if (!k) return;
+      (groups[k] = groups[k] || []).push(p);
+    });
+    var dups = [];
+    Object.keys(groups).forEach(function(k){
+      if (groups[k].length > 1){
+        dups.push(groups[k]);
+        groups[k].forEach(function(p){ if (p.path) dupPaths[p.path] = groups[k].length; });
+      }
+    });
+    if (dups.length){
+      var names = dups.map(function(g){ return '“' + g[0].name + '” (' + g.length + ' folders)'; }).join(', ');
+      showBanner('warn', 'Possible duplicate project folders: ' + names + '. They are scanned and updated separately — consider consolidating.');
+    }
+    return dups;
+  }
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]; }); }
 
@@ -176,11 +234,14 @@
       var outCls = out>0 ? '' : ' ok';
       var outTxt = out>0 ? (out + ' out') : (total ? 'ok' : '?');
       var ico = p.isGit ? ICONS.code : ICONS.folder;
-      chips.push('<button class="proj-chip'+(active?' active':'')+'" data-path="'+esc(p.path)+'" aria-pressed="'+active+'" title="'+esc(p.name+(p.path?' — '+p.path:''))+'">'
+      var dupN = p.path ? (dupPaths[p.path] || 0) : 0;
+      var dupTitle = dupN ? (' — name matches ' + dupN + ' project folders') : '';
+      chips.push('<button class="proj-chip'+(active?' active':'')+(dupN?' dup':'')+'" data-path="'+esc(p.path)+'" aria-pressed="'+active+'" title="'+esc(p.name+(p.path?' — '+p.path:'')+dupTitle)+'">'
         + '<span class="pc-ico">'+ico+'</span>'
         + '<span class="proj-dot '+dot+'"></span>'
         + '<span class="pc-name">'+esc(p.name)+'</span>'
         + '<span class="pc-out'+outCls+'">'+outTxt+'</span>'
+        + (dupN ? '<span class="pc-dup" title="'+esc('Possible duplicate of another folder with the same name')+'">'+dupN+'×</span>' : '')
         + '</button>');
     });
     projList.innerHTML = chips.join('');
@@ -571,7 +632,10 @@
   }
 
   function applyData(d){
+    lastScanTs = d.timestamp || null;
     scanStatus.textContent = 'Last scan: ' + (d.timestamp || 'never');
+    updateFreshness();
+    checkDuplicateProjects(d.projects || []);
     renderSummary(d.summary);
     allPkgs = d.packages || [];
     allProjects = d.projects || [];
@@ -601,10 +665,32 @@
     if (scanSpinner) scanSpinner.hidden = false;
     scanStatus.textContent = 'Scanning…';
     pkgList.innerHTML = '<div class="empty">Refreshing update data…</div>';
-    fetch('/api/refresh').then(function(r){ return r.json(); }).then(function(d){
-      applyData(d);
-      var s = d.summary || {};
-      showBanner('ok', 'Scan complete — ' + (s.outdated||0) + ' outdated, ' + (s.current||0) + ' up to date across ' + (s.projects||0) + ' projects.');
+    fetch('/api/refresh', { method:'POST' }).then(function(res){
+      var ct = res.headers.get('content-type') || '';
+      // Streaming server (SSE): live progress lines while check_updates runs.
+      if (ct.indexOf('text/event-stream') >= 0){
+        return readSse(res, function(ev, data){
+          if (ev === 'refresh_line' && data.line){
+            scanStatus.textContent = String(data.line).slice(0, 140);
+          } else if (ev === 'refresh_done'){
+            var d = data.data || {};
+            applyData(d);
+            var s = d.summary || {};
+            if (data.success === false){
+              showBanner('warn', 'Scan finished with exit code ' + data.exitCode + ' — results may be incomplete.');
+              scanStatus.textContent = 'Scan ended (exit ' + data.exitCode + ').';
+            } else {
+              showBanner('ok', 'Scan complete — ' + (s.outdated||0) + ' outdated, ' + (s.current||0) + ' up to date across ' + (s.projects||0) + ' projects.');
+            }
+          }
+        });
+      }
+      // Legacy non-streaming JSON response.
+      return res.json().then(function(d){
+        applyData(d);
+        var s = d.summary || {};
+        showBanner('ok', 'Scan complete — ' + (s.outdated||0) + ' outdated, ' + (s.current||0) + ' up to date across ' + (s.projects||0) + ' projects.');
+      });
     }).catch(function(e){
       scanStatus.textContent = 'Scan failed: ' + e.message;
       pkgList.innerHTML = '<div class="empty">Could not reach the update API. Is the dashboard server running?</div>';

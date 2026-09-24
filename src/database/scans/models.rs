@@ -45,6 +45,9 @@ pub struct DuplicateAnalysisRecord {
     pub timestamp: String,
 }
 
-/// Maximum number of scan-history records kept per distinct path. Newer scans
-/// beyond this limit are removed on insert so the cache cannot grow unbounded.
+/// Default maximum number of scan-history records kept per distinct path.
+/// Newer scans beyond this limit are removed on insert so the cache cannot
+/// grow unbounded. The effective limit is the `max_scans_per_path` setting
+/// (user-configurable); this constant is the fallback when the setting is
+/// absent or invalid.
 pub const MAX_SCANS_PER_PATH: usize = 20;

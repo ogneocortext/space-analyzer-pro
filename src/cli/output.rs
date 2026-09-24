@@ -1,4 +1,4 @@
-use crate::animation::{self, display_width, SECTION_WIDTH};
+use crate::animation::{self, SECTION_WIDTH, display_width};
 use crate::cli::render::{self, format_extension, pct_of};
 use crate::cli::types::ScanReport;
 use crate::hprintln;
@@ -76,20 +76,31 @@ pub fn print_text_results(
     // — that the user may want to keep). Showing them together would make Caution
     // items look freely deletable, so we separate them.
     let safe_bytes = result.reclaim_tier_sizes.get("Safe").copied().unwrap_or(0);
-    let caution_bytes = result.reclaim_tier_sizes.get("Caution").copied().unwrap_or(0);
+    let caution_bytes = result
+        .reclaim_tier_sizes
+        .get("Caution")
+        .copied()
+        .unwrap_or(0);
     if safe_bytes > 0 || caution_bytes > 0 {
         animation::print_section_header_animated("🧹", "RECLAIM ESTIMATE", no_animation);
+        let total = result.total_size_bytes;
+        let safe_pct = pct_of(safe_bytes, total);
+        let caution_pct = pct_of(caution_bytes, total);
+        let total_pct = pct_of(safe_bytes + caution_bytes, total);
         hprintln!(
-            "   Safe to delete:     {} (caches, temp, build output, dependencies)",
-            format_bytes(safe_bytes)
+            "   Safe to delete:     {} ({:.1}% of scanned tree) — caches, temp, build output, dependencies",
+            format_bytes(safe_bytes),
+            safe_pct
         );
         hprintln!(
-            "   Review needed:      {} (AI models, VMs, archives — may be wanted)",
-            format_bytes(caution_bytes)
+            "   Review needed:      {} ({:.1}% of scanned tree) — AI models, VMs, archives — may be wanted",
+            format_bytes(caution_bytes),
+            caution_pct
         );
         hprintln!(
-            "   Total reclaimable:  {}",
-            format_bytes(safe_bytes + caution_bytes)
+            "   Total reclaimable:  {} ({:.1}% of scanned tree)",
+            format_bytes(safe_bytes + caution_bytes),
+            total_pct
         );
         hprintln!();
     }
@@ -270,7 +281,13 @@ pub fn print_text_results(
         for (dir, detail) in result.drill_down.iter() {
             hprintln!("   📁 {}", dir);
             if !detail.children.is_empty() {
-                hprintln!("      {:>11} {:>8} {:>6}  {}", "Size", "Files", "Dirs", "Child");
+                hprintln!(
+                    "      {:>11} {:>8} {:>6}  {}",
+                    "Size",
+                    "Files",
+                    "Dirs",
+                    "Child"
+                );
                 for c in detail.children.iter().take(15) {
                     hprintln!(
                         "      {:>11} {:>8} {:>6}  {}",

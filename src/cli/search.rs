@@ -23,16 +23,8 @@ pub fn run(args: SearchArgs, output_format: OutputFormat) -> AppResult<()> {
     let resolved = resolve_scan_path(&path_raw)?;
     let display = display_path(&resolved);
 
-    let min = args
-        .min_size
-        .as_deref()
-        .map(parse_size)
-        .transpose()?;
-    let max = args
-        .max_size
-        .as_deref()
-        .map(parse_size)
-        .transpose()?;
+    let min = args.min_size.as_deref().map(parse_size).transpose()?;
+    let max = args.max_size.as_deref().map(parse_size).transpose()?;
     validate_size_window(min, max)?;
 
     let query = SearchQuery {
@@ -79,7 +71,10 @@ pub fn run(args: SearchArgs, output_format: OutputFormat) -> AppResult<()> {
             serde_json::to_string_pretty(&response).unwrap_or_default()
         );
     } else if result.matches.is_empty() {
-        println!("No files matched in {display} (scanned {} files).", result.files_scanned);
+        println!(
+            "No files matched in {display} (scanned {} files).",
+            result.files_scanned
+        );
     } else {
         println!(
             "Found {} file(s) in {display} (scanned {} files{}):",

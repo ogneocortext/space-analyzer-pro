@@ -137,7 +137,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     // A scan that hit many permission-denied errors probably skipped protected
     // system directories (C:\Windows, C:\Program Files, etc.). Surface a warning
     // so the user knows the totals are incomplete and can re-run elevated.
-    let permission_errors = result
+    let permission_errors: Vec<_> = result
         .errors
         .iter()
         .filter(|e| {
@@ -145,13 +145,20 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
                 || e.contains("Access is denied")
                 || e.contains("access is denied")
         })
-        .count();
-    if permission_errors >= 5 {
+        .collect();
+    let permission_error_count = permission_errors.len();
+    if permission_error_count >= 5 {
         eprintln!(
             "⚠️  {} directories were skipped due to permissions. For full coverage, \
              re-run from an elevated (Administrator) terminal.",
-            permission_errors
+            permission_error_count
         );
+        for err in permission_errors.iter().take(3) {
+            eprintln!("   - {}", err);
+        }
+        if permission_error_count > 3 {
+            eprintln!("   ... and {} more", permission_error_count - 3);
+        }
     }
 
     if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {

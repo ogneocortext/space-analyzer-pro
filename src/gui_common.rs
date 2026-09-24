@@ -190,8 +190,7 @@ impl ScanReport {
         report.file_types = serde_json::from_str(&record.file_types_json).unwrap_or_default();
         report.top_directories =
             serde_json::from_str(&record.top_directories_json).unwrap_or_default();
-        report.largest_files =
-            serde_json::from_str(&record.largest_files_json).unwrap_or_default();
+        report.largest_files = serde_json::from_str(&record.largest_files_json).unwrap_or_default();
         report.category_sizes =
             serde_json::from_str(&record.category_sizes_json).unwrap_or_default();
         report.reclaim_tier_sizes =

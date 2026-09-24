@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub fn collect_registry_apps() -> Vec<AppInstance> {
-    use winreg::enums::*;
     use winreg::RegKey;
+    use winreg::enums::*;
 
     let mut out = Vec::new();
     let hives = [HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER];

@@ -315,6 +315,7 @@ public partial class SettingsViewModel
         OnPropertyChanged(nameof(IsScannerPathValid));
         OnPropertyChanged(nameof(ScannerPathStatus));
         OnPropertyChanged(nameof(ScanDepth));
+        OnPropertyChanged(nameof(MaxScansPerPath));
         OnPropertyChanged(nameof(IncludeHidden));
         OnPropertyChanged(nameof(GpuAcceleration));
         OnPropertyChanged(nameof(UseFileCache));

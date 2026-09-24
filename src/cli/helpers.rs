@@ -53,7 +53,7 @@ pub fn parse_size(s: &str) -> Result<u64, AppError> {
             return Err(AppError::InvalidMinSize(format!(
                 "Unknown unit '{}'. Use B, K(KB), M(MB), G(GB), or T(TB)",
                 other
-            )))
+            )));
         }
     };
 

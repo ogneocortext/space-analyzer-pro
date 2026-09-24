@@ -511,10 +511,12 @@ mod tests {
 
         assert_eq!(duplicate_groups.len(), 1);
         assert_eq!(duplicate_groups[0].files.len(), 2);
-        assert!(duplicate_groups[0]
-            .files
-            .iter()
-            .all(|f| f.is_hard_link || duplicate_groups[0].files.len() == 1));
+        assert!(
+            duplicate_groups[0]
+                .files
+                .iter()
+                .all(|f| f.is_hard_link || duplicate_groups[0].files.len() == 1)
+        );
         assert!(!duplicate_groups[0].can_deduplicate);
     }
 

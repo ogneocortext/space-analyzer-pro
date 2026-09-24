@@ -89,8 +89,7 @@ impl ToolRegistry {
         }
         let size = args.get("size_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
         let assessment = crate::origin_tracer::tracer::assess_file(path, size);
-        serde_json::to_string_pretty(&assessment)
-            .unwrap_or_else(|_| format!("{:#?}", assessment))
+        serde_json::to_string_pretty(&assessment).unwrap_or_else(|_| format!("{:#?}", assessment))
     }
 
     fn get_bloat_findings(&self, scan_result: Option<&ScanReport>) -> String {

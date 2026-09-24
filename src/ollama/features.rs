@@ -56,7 +56,7 @@ mod tests {
     //!   - If unreachable, the test passes with a SKIP message.
 
     use crate::gui_common;
-    use crate::ollama::agentic::{agentic_question, ToolExecutor};
+    use crate::ollama::agentic::{ToolExecutor, agentic_question};
     use crate::ollama::helpers::{encode_image_for_ollama, split_thinking};
     use crate::ollama::models::{
         AgenticStep, CleanupPlanInput, ScanSummaryInput, ScreenshotInput, SemanticSearchInput,

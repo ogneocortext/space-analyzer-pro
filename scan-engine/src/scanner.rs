@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use walkdir::WalkDir;
 
-use crate::categories::{classify_reclaimability, extension_to_category, ReclaimTier};
+use crate::categories::{ReclaimTier, classify_reclaimability, extension_to_category};
 use crate::formatting::allocated_size;
 use crate::types::{
     DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,

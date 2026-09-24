@@ -3,7 +3,7 @@
 //! Provides self-contained persistence with zero external dependencies.
 //! Stores scan history, settings, workflow executions, and analysis data.
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;

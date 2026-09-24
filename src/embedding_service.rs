@@ -40,11 +40,7 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     }
 
     let denom = norm_a.sqrt() * norm_b.sqrt();
-    if denom < 1e-8 {
-        0.0
-    } else {
-        dot / denom
-    }
+    if denom < 1e-8 { 0.0 } else { dot / denom }
 }
 
 /// Create a text description of a file for embedding

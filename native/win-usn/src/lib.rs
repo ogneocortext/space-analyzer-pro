@@ -379,7 +379,7 @@ impl SpaceAnalyzer {
             use std::os::windows::ffi::OsStrExt;
             use std::os::windows::fs::MetadataExt;
             use winapi::um::fileapi::{
-                CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, OPEN_EXISTING,
+                BY_HANDLE_FILE_INFORMATION, CreateFileW, GetFileInformationByHandle, OPEN_EXISTING,
             };
             use winapi::um::handleapi::CloseHandle;
             use winapi::um::winnt::{
