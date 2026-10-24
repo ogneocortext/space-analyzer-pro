@@ -166,9 +166,10 @@ impl FileScanner {
 
         // --- Directory cache: load from options (populated by caller from DB) ---
         let dir_cache = options.dir_cache.clone();
-        let mut skipped_dirs: Vec<(String, u64, u64)> = Vec::new();
+        let mut skipped_dirs: Vec<(String, u64, u64, i64)> = Vec::new();
         let mut skip_dirs: std::collections::HashSet<String> = std::collections::HashSet::new();
         let include_hidden = options.include_hidden;
+        let mut scanned_files: HashMap<String, (u64, i64)> = HashMap::new();
 
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
@@ -214,8 +215,15 @@ impl FileScanner {
                                             dir_path.clone(),
                                             *cached_size,
                                             *cached_file_count,
+                                            *cached_mtime,
                                         ));
-                                        skip_dirs.insert(dir_path);
+                                        skip_dirs.insert(dir_path.clone());
+                                        // Insert into scanned_files so mtime is available
+                                        // for directory cache saving after the scan.
+                                        scanned_files.insert(
+                                            dir_path.clone(),
+                                            (*cached_size, *cached_mtime),
+                                        );
                                         continue;
                                     }
                                 }
@@ -298,7 +306,6 @@ impl FileScanner {
         let mut _dirs_scanned = 0u64;
         let mut _files_scanned = 0u64;
         let mut _current_size = 0u64;
-        let mut scanned_files: HashMap<String, (u64, i64)> = HashMap::new();
         let mut file_types: HashMap<String, u64> = HashMap::new();
         let mut extension_sizes: HashMap<String, u64> = HashMap::new();
         let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
@@ -355,12 +362,12 @@ impl FileScanner {
 
         // Add skipped directory totals from cache (dirs whose mtime matched,
         // so their subtrees were not walked).
-        let skipped_size: u64 = skipped_dirs.iter().map(|(_, s, _)| *s).sum();
-        let skipped_files: u64 = skipped_dirs.iter().map(|(_, _, f)| *f).sum();
+        let skipped_size: u64 = skipped_dirs.iter().map(|(_, s, _, _)| *s).sum();
+        let skipped_files: u64 = skipped_dirs.iter().map(|(_, _, f, _)| *f).sum();
         result.total_size += skipped_size;
         result.total_files += skipped_files;
         result.total_directories += skipped_dirs.len() as u64;
-        for (dir_path, cached_size, cached_file_count) in &skipped_dirs {
+        for (dir_path, cached_size, cached_file_count, _cached_mtime) in &skipped_dirs {
             result.subdirectories.push(DirInfo {
                 path: crate::post_process::strip_verbatim(dir_path.clone()),
                 name: crate::post_process::extract_filename(dir_path),
