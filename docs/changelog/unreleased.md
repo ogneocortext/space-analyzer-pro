@@ -1,6 +1,16 @@
 # [Unreleased]
 
-## CLI test coverage & file organization
+## CI pipeline
+
+### Fixed
+- **`just ci` now passes end-to-end**: `fmt-check` → `clippy-strict` → `test` all green
+  (`cargo fmt --all -- --check` exit 0, `cargo clippy --workspace --all-targets -- -D warnings`
+  exit 0, `cargo test --workspace` 125 passed / 0 failed).
+- **71 pre-existing rustfmt deviations fixed** with `cargo fmt --all` (only
+  recently-edited files affected: `src/cli/{args,dedup,diff,helpers,live_scan,search,system}.rs`,
+  `tests/unit/{cli_test,shared_scanner_test}.rs`).
+
+# [4.3.0] - 2026-10-24
 
 ### Added
 - **Unit tests for age filtering** (`--min-age`/`--max-age`): `helpers.rs` tests for
