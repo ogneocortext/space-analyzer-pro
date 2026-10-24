@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// File information structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +107,7 @@ pub struct DirInfo {
 }
 
 /// Scan options
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ScanOptions {
     pub max_depth: Option<usize>,
     pub min_size: Option<u64>,
@@ -125,6 +126,8 @@ pub struct ScanOptions {
     /// When present, directories whose mtime matches the cache entry are skipped
     /// during traversal, using the cached totals instead of re-walking.
     pub dir_cache: Option<HashMap<String, (u64, u64, i64)>>,
+    /// Optional progress callback invoked periodically during the scan.
+    pub progress_callback: Option<Arc<dyn Fn(ScanProgress) + Send + Sync>>,
 }
 
 impl Default for ScanOptions {
@@ -142,6 +145,7 @@ impl Default for ScanOptions {
             top_n: 100,
             file_cache: None,
             dir_cache: None,
+            progress_callback: None,
         }
     }
 }

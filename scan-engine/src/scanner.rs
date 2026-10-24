@@ -1,21 +1,26 @@
 use chrono::DateTime;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::SystemTime;
+use std::sync::Arc;
+use std::time::{Duration, Instant, SystemTime};
 use walkdir::WalkDir;
 
 use crate::categories::{ReclaimTier, classify_reclaimability, extension_to_category};
 use crate::formatting::allocated_size;
-use crate::post_process::{post_process_entries, PostProcessResult, RawFileEntry};
+use crate::post_process::{post_process_entries, PostProcessResult, RawFileEntry, extract_filename, strip_verbatim};
 use crate::types::{
     DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,
     SystemInfo,
 };
 
+use rayon::prelude::*;
+
 /// File scanner implementation
-pub struct FileScanner;
+pub struct FileScanner {
+    cancel_flag: Arc<AtomicBool>,
+}
 
 impl Default for FileScanner {
     fn default() -> Self {
@@ -25,7 +30,19 @@ impl Default for FileScanner {
 
 impl FileScanner {
     pub fn new() -> Self {
-        Self
+        Self {
+            cancel_flag: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Request cancellation of any in-progress scan.
+    pub fn cancel(&self) {
+        self.cancel_flag.store(true, Ordering::Relaxed);
+    }
+
+    /// Check whether cancellation has been requested.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel_flag.load(Ordering::Relaxed)
     }
 }
 

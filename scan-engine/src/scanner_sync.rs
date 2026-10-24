@@ -1,3 +1,18 @@
+/// Accumulators shared across batch processing to avoid excessive arguments.
+struct BatchAccumulators {
+    file_types: HashMap<String, u64>,
+    extension_sizes: HashMap<String, u64>,
+    category_sizes_acc: HashMap<String, u64>,
+    reclaim_tier_sizes_acc: HashMap<String, u64>,
+    category_reclaimable_acc: HashMap<String, u64>,
+}
+
+/// Collections that grow during the walk.
+struct ScanCollections {
+    all_raw_entries: Vec<RawFileEntry>,
+    scanned_files: HashMap<String, (u64, i64)>,
+}
+
 impl FileScanner {
     fn should_include_file(
         metadata: &std::fs::Metadata,
@@ -99,21 +114,19 @@ impl FileScanner {
         }
     }
 
-    fn compute_true_empty_dirs(walk_entries: &[walkdir::DirEntry]) -> Vec<String> {
+    /// Compute directories with zero child entries from raw entries.
+    fn compute_true_empty_dirs(entries: &[(String, bool)]) -> Vec<String> {
         use std::collections::{HashMap, HashSet};
 
         let mut all_dirs: HashSet<String> = HashSet::new();
         let mut child_counts: HashMap<String, usize> = HashMap::new();
 
-        for entry in walk_entries {
-            let path = entry.path();
-            let path_str = path.to_string_lossy().to_string();
-
-            if entry.metadata().map(|m| m.is_dir()).unwrap_or(false) {
-                all_dirs.insert(path_str);
+        for (path, is_dir) in entries {
+            if *is_dir {
+                all_dirs.insert(path.clone());
             }
 
-            if let Some(parent) = path.parent() {
+            if let Some(parent) = Path::new(path).parent() {
                 let parent_str = parent.to_string_lossy().to_string();
                 *child_counts.entry(parent_str).or_insert(0) += 1;
             }
@@ -141,6 +154,14 @@ impl FileScanner {
             .unwrap_or(0)
     }
 
+    /// Streamed directory scan with parallel metadata processing.
+    ///
+    /// WalkDir traversal is sequential, but per-entry metadata syscalls,
+    /// categorization, and filtering are parallelised across cores using rayon.
+    /// Entries are processed in batches of 1024 to bound memory usage — the
+    /// entire tree is never buffered in RAM at once. Progress is reported via
+    /// `options.progress_callback` after each batch, and `self.cancel_flag` is
+    /// checked before each batch so cancellation is responsive.
     pub fn scan_directory_sync(
         &self,
         path: &str,
@@ -162,14 +183,23 @@ impl FileScanner {
             category_reclaimable: HashMap::new(),
         };
 
-        let mut raw_entries = Vec::new();
-
-        // --- Directory cache: load from options (populated by caller from DB) ---
         let dir_cache = options.dir_cache.clone();
         let mut skipped_dirs: Vec<(String, u64, u64, i64)> = Vec::new();
-        let mut skip_dirs: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut skip_dirs: HashSet<String> = HashSet::new();
         let include_hidden = options.include_hidden;
-        let mut scanned_files: HashMap<String, (u64, i64)> = HashMap::new();
+
+        // Incremental accumulators for progress reporting during the walk.
+        let mut acc = BatchAccumulators {
+            file_types: HashMap::new(),
+            extension_sizes: HashMap::new(),
+            category_sizes_acc: HashMap::new(),
+            reclaim_tier_sizes_acc: HashMap::new(),
+            category_reclaimable_acc: HashMap::new(),
+        };
+        let mut collections = ScanCollections {
+            all_raw_entries: Vec::new(),
+            scanned_files: HashMap::new(),
+        };
 
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
@@ -179,25 +209,24 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
-        // Walk the tree, pruning subtrees whose directory mtime matches the cache.
-        // WalkDir 2.5 doesn't have filter_entry, so we check each directory entry
-        // and track skipped dirs; files under skipped dirs are filtered below.
-        let mut walk_entries = Vec::new();
-        for entry in walker {
-            match entry {
+        let mut batch: Vec<walkdir::DirEntry> = Vec::with_capacity(1024);
+        const BATCH_SIZE: usize = 1024;
+        let start_time = Instant::now();
+
+        for entry_result in walker {
+            // Check cancellation before processing each entry.
+            if self.cancel_flag.load(Ordering::Relaxed) {
+                break;
+            }
+
+            match entry_result {
                 Ok(entry) => {
                     let is_dir = entry.file_type().is_dir();
                     let dir_path = entry.path().to_string_lossy().to_string();
 
                     // Hidden-filter logic
-                    if !include_hidden && entry.depth() > 0 {
-                        if !is_dir {
-                            walk_entries.push(entry);
-                            continue;
-                        }
-                        if Self::dir_entry_is_hidden(&entry) {
-                            continue;
-                        }
+                    if !include_hidden && entry.depth() > 0 && is_dir && Self::dir_entry_is_hidden(&entry) {
+                        continue;
                     }
 
                     // Directory cache skip
@@ -218,9 +247,7 @@ impl FileScanner {
                                             *cached_mtime,
                                         ));
                                         skip_dirs.insert(dir_path.clone());
-                                        // Insert into scanned_files so mtime is available
-                                        // for directory cache saving after the scan.
-                                        scanned_files.insert(
+                                        collections.scanned_files.insert(
                                             dir_path.clone(),
                                             (*cached_size, *cached_mtime),
                                         );
@@ -247,22 +274,125 @@ impl FileScanner {
                         }
                     }
 
-                    walk_entries.push(entry);
+                    batch.push(entry);
+
+                    if batch.len() >= BATCH_SIZE {
+                        self.process_batch(
+                            &batch,
+                            &options,
+                            &mut result,
+                            &mut acc,
+                            &mut collections,
+                        )?;
+                        batch.clear();
+
+                        if let Some(progress) = &options.progress_callback {
+                            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                progress(ScanProgress {
+                                    phase: "scanning".to_string(),
+                                    entries_discovered: 0,
+                                    files_scanned: result.total_files,
+                                    directories_scanned: result.total_directories,
+                                    total_size: result.total_size,
+                                    current_file: "Processing batch".to_string(),
+                                    percentage: 0.0,
+                                    elapsed_secs: start_time.elapsed().as_secs_f64(),
+                                    live_files: Vec::new(),
+                                    file_type_counts: acc.file_types.clone(),
+                                    extension_sizes: acc.extension_sizes.clone(),
+                                    category_sizes: acc.category_sizes_acc.clone(),
+                                });
+                            }));
+                        }
+                    }
                 }
                 Err(error) => result.errors.push(format!("Traversal error: {error}")),
             }
         }
-        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
-        // Parallel metadata processing with rayon. The WalkDir traversal is
-        // inherently sequential, but the per-entry metadata syscalls and
-        // categorization are independent and can be parallelised across cores.
-        // Each thread returns a local result; results are merged below.
-        use rayon::prelude::*;
-        use std::sync::Mutex;
+        // Process remaining batch
+        if !batch.is_empty() {
+            self.process_batch(
+                &batch,
+                &options,
+                &mut result,
+                &mut acc,
+                &mut collections,
+            )?;
+            if let Some(progress) = &options.progress_callback {
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    progress(ScanProgress {
+                        phase: "scanning".to_string(),
+                        entries_discovered: 0,
+                        files_scanned: result.total_files,
+                        directories_scanned: result.total_directories,
+                        total_size: result.total_size,
+                        current_file: "Processing batch".to_string(),
+                        percentage: 0.0,
+                        elapsed_secs: start_time.elapsed().as_secs_f64(),
+                        live_files: Vec::new(),
+                        file_type_counts: acc.file_types.clone(),
+                        extension_sizes: acc.extension_sizes.clone(),
+                        category_sizes: acc.category_sizes_acc.clone(),
+                    });
+                }));
+            }
+        }
 
-        let parallel_errors: Mutex<Vec<String>> = Mutex::new(Vec::new());
-        let parallel_results: Vec<_> = walk_entries
+        // Compute true empty dirs from raw entries.
+        let raw_entry_pairs: Vec<(String, bool)> = collections
+            .all_raw_entries
+            .iter()
+            .map(|e| (e.path.clone(), e.is_dir))
+            .collect();
+        let true_empty_dirs = Self::compute_true_empty_dirs(&raw_entry_pairs);
+
+        // Run compute-heavy post-processing on all collected entries.
+        let post_result =
+            post_process_entries(&collections.all_raw_entries, options.top_n, Some(Path::new(path)));
+
+        Self::apply_cpu_result(
+            &mut result,
+            &post_result,
+            &collections.all_raw_entries,
+            true_empty_dirs,
+            collections.scanned_files,
+        );
+
+        // Add skipped directory totals from cache (dirs whose mtime matched,
+        // so their subtrees were not walked).
+        let skipped_size: u64 = skipped_dirs.iter().map(|(_, s, _, _)| *s).sum();
+        let skipped_files: u64 = skipped_dirs.iter().map(|(_, _, f, _)| *f).sum();
+        result.total_size += skipped_size;
+        result.total_files += skipped_files;
+        result.total_directories += skipped_dirs.len() as u64;
+        for (dir_path, cached_size, cached_file_count, _) in &skipped_dirs {
+            result.subdirectories.push(DirInfo {
+                path: strip_verbatim(dir_path.clone()),
+                name: extract_filename(dir_path),
+                total_size: *cached_size,
+                file_count: *cached_file_count,
+                dir_count: 0,
+                largest_file_size: 0,
+            });
+        }
+
+        Ok(result)
+    }
+
+    /// Process a batch of directory entries in parallel using rayon.
+    /// Each thread returns a local result; merging happens sequentially
+    /// afterward, so there is no shared mutable state across threads.
+    fn process_batch(
+        &self,
+        batch: &[walkdir::DirEntry],
+        options: &ScanOptions,
+        result: &mut ScanResult,
+        acc: &mut BatchAccumulators,
+        collections: &mut ScanCollections,
+    ) -> anyhow::Result<()> {
+        // Phase 1: parallel metadata extraction per entry.
+        let batch_results: Vec<_> = batch
             .par_iter()
             .map(|entry_result| {
                 let entry_path = entry_result.path();
@@ -278,7 +408,17 @@ impl FileScanner {
                         } else {
                             format!("Metadata error: {}: {}", path_str, e)
                         };
-                        return (path_str, 0u64, false, 0i64, String::new(), String::new(), ReclaimTier::Keep, false, Some(error_msg));
+                        return (
+                            path_str,
+                            0u64,
+                            false,
+                            0i64,
+                            String::new(),
+                            String::new(),
+                            ReclaimTier::Keep,
+                            false,
+                            Some(error_msg),
+                        );
                     }
                 };
 
@@ -286,8 +426,18 @@ impl FileScanner {
                 let size = allocated_size(&metadata, entry_path);
                 let mtime = Self::get_mtime_unix(&metadata);
 
-                if !is_dir && !Self::should_include_file(&metadata, entry_path, &options) {
-                    return (path_str, size, false, mtime, String::new(), String::new(), ReclaimTier::Keep, false, None);
+                if !is_dir && !Self::should_include_file(&metadata, entry_path, options) {
+                    return (
+                        path_str,
+                        size,
+                        false,
+                        mtime,
+                        String::new(),
+                        String::new(),
+                        ReclaimTier::Keep,
+                        false,
+                        None,
+                    );
                 }
 
                 let ext = Path::new(&entry_path)
@@ -298,23 +448,35 @@ impl FileScanner {
                 let cat = extension_to_category(&ext, &path_str);
                 let tier = classify_reclaimability(&ext, &path_str.to_lowercase(), cat);
 
-                (path_str, size, is_dir, mtime, ext, cat.to_string(), tier, true, None)
+                (
+                    path_str,
+                    size,
+                    is_dir,
+                    mtime,
+                    ext,
+                    cat.to_string(),
+                    tier,
+                    true,
+                    None,
+                )
             })
             .collect();
 
-        // Merge parallel results into shared state.
-        let mut _dirs_scanned = 0u64;
-        let mut _files_scanned = 0u64;
-        let mut _current_size = 0u64;
-        let mut file_types: HashMap<String, u64> = HashMap::new();
-        let mut extension_sizes: HashMap<String, u64> = HashMap::new();
-        let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
-        let mut reclaim_tier_sizes_acc: HashMap<String, u64> = HashMap::new();
-        let mut category_reclaimable_acc: HashMap<String, u64> = HashMap::new();
-
-        for (path_str, size, is_dir, mtime, ext, cat, tier, include, error) in parallel_results {
+        // Phase 2: sequential merge (no shared mutable state across threads).
+        for (
+            path_str,
+            size,
+            is_dir,
+            mtime,
+            ext,
+            cat,
+            tier,
+            include,
+            error,
+        ) in batch_results
+        {
             if let Some(err) = error {
-                parallel_errors.lock().unwrap().push(err);
+                result.errors.push(err);
                 continue;
             }
             if !include {
@@ -322,63 +484,108 @@ impl FileScanner {
             }
 
             if is_dir {
-                _dirs_scanned += 1;
+                result.total_directories += 1;
             } else {
-                _files_scanned += 1;
-                _current_size += size;
+                result.total_files += 1;
+                result.total_size += size;
             }
 
-            raw_entries.push(RawFileEntry {
+            collections.all_raw_entries.push(RawFileEntry {
                 path: path_str.clone(),
                 size,
                 is_dir,
             });
 
-            scanned_files.insert(path_str.clone(), (size, mtime));
+            collections.scanned_files.insert(path_str.clone(), (size, mtime));
 
-            *file_types.entry(ext.clone()).or_insert(0) += 1;
-            *extension_sizes.entry(ext.clone()).or_insert(0) += size;
-            *category_sizes_acc.entry(cat.clone()).or_insert(0) += size;
-            *reclaim_tier_sizes_acc.entry(tier.as_str().to_string()).or_insert(0) += size;
+            *acc.file_types.entry(ext.clone()).or_insert(0) += 1;
+            *acc.extension_sizes.entry(ext.clone()).or_insert(0) += size;
+            *acc.category_sizes_acc.entry(cat.clone()).or_insert(0) += size;
+            *acc
+                .reclaim_tier_sizes_acc
+                .entry(tier.as_str().to_string())
+                .or_insert(0)
+                += size;
             if tier != ReclaimTier::Keep {
-                *category_reclaimable_acc.entry(cat).or_insert(0) += size;
+                *acc
+                    .category_reclaimable_acc
+                    .entry(cat)
+                    .or_insert(0)
+                    += size;
             }
         }
 
-        // Append any parallel-collected errors to the result.
-        if let Ok(errs) = parallel_errors.lock() {
-            result.errors.extend(errs.iter().cloned());
-        }
+        Ok(())
+    }
 
-        let gpu_result = post_process_entries(&raw_entries, options.top_n, Some(Path::new(path)));
+    fn apply_cpu_result(
+        result: &mut ScanResult,
+        cpu_result: &PostProcessResult,
+        raw_entries: &[RawFileEntry],
+        true_empty_dirs: Vec<String>,
+        scanned_files: HashMap<String, (u64, i64)>,
+    ) {
+        result.total_files = cpu_result.total_files;
+        result.total_size = cpu_result.total_size;
+        result.file_types = cpu_result.file_types.clone();
+        result.extension_sizes = cpu_result.extension_sizes.clone();
+        result.empty_directories = true_empty_dirs;
+        result.subdirectories = cpu_result
+            .subdirectories
+            .clone()
+            .into_iter()
+            .map(|d| DirInfo {
+                path: d.path,
+                name: d.name,
+                total_size: d.total_size,
+                file_count: d.file_count,
+                dir_count: d.dir_count,
+                largest_file_size: d.largest_file_size,
+            })
+            .collect();
 
-        Self::apply_cpu_result(
-            &mut result,
-            &gpu_result,
-            &raw_entries,
-            true_empty_dirs,
-            scanned_files,
-        );
+        for info in &cpu_result.largest_files {
+            let modified = std::fs::metadata(&info.path)
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(Self::format_timestamp);
 
-        // Add skipped directory totals from cache (dirs whose mtime matched,
-        // so their subtrees were not walked).
-        let skipped_size: u64 = skipped_dirs.iter().map(|(_, s, _, _)| *s).sum();
-        let skipped_files: u64 = skipped_dirs.iter().map(|(_, _, f, _)| *f).sum();
-        result.total_size += skipped_size;
-        result.total_files += skipped_files;
-        result.total_directories += skipped_dirs.len() as u64;
-        for (dir_path, cached_size, cached_file_count, _cached_mtime) in &skipped_dirs {
-            result.subdirectories.push(DirInfo {
-                path: crate::post_process::strip_verbatim(dir_path.clone()),
-                name: crate::post_process::extract_filename(dir_path),
-                total_size: *cached_size,
-                file_count: *cached_file_count,
-                dir_count: 0,
-                largest_file_size: 0,
+            result.largest_files.push(FileInfo {
+                path: info.path.clone(),
+                name: info.name.clone(),
+                size: info.size,
+                modified,
+                file_type: "file".to_string(),
+                extension: info.extension.clone(),
             });
         }
 
-        Ok(result)
+        result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
+        result.scanned_files = scanned_files;
+
+        let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut reclaim_tier_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut category_reclaimable_acc: HashMap<String, u64> = HashMap::new();
+        for entry in raw_entries {
+            if entry.is_dir {
+                continue;
+            }
+            let ext = Path::new(&entry.path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            let cat = extension_to_category(&ext, &entry.path);
+            *category_sizes_acc.entry(cat.to_string()).or_insert(0) += entry.size;
+            let tier = classify_reclaimability(&ext, &entry.path.to_lowercase(), cat);
+            *reclaim_tier_sizes_acc.entry(tier.as_str().to_string()).or_insert(0) += entry.size;
+            if tier != ReclaimTier::Keep {
+                *category_reclaimable_acc.entry(cat.to_string()).or_insert(0) += entry.size;
+            }
+        }
+        result.category_sizes = category_sizes_acc;
+        result.reclaim_tier_sizes = reclaim_tier_sizes_acc;
+        result.category_reclaimable = category_reclaimable_acc;
     }
 
     /// Walk `path` and collect every file that satisfies `query`, capped at
@@ -414,15 +621,17 @@ impl FileScanner {
         }
         walker = walker.follow_links(false);
 
-        for entry in walker.into_iter().filter_entry(|e| {
-            if query.include_hidden || e.depth() == 0 {
-                return true;
-            }
-            if !e.file_type().is_dir() {
-                return true;
-            }
-            !Self::dir_entry_is_hidden(e)
-        }) {
+        for entry in walker
+            .into_iter()
+            .filter_entry(|e| {
+                if query.include_hidden || e.depth() == 0 {
+                    return true;
+                }
+                if !e.file_type().is_dir() {
+                    return true;
+                }
+                !Self::dir_entry_is_hidden(e)
+            }) {
             let entry = match entry {
                 Ok(e) => e,
                 Err(error) => {
@@ -544,75 +753,5 @@ impl FileScanner {
             matches,
             errors,
         })
-    }
-
-    fn apply_cpu_result(
-        result: &mut ScanResult,
-        cpu_result: &PostProcessResult,
-        raw_entries: &[RawFileEntry],
-        true_empty_dirs: Vec<String>,
-        scanned_files: HashMap<String, (u64, i64)>,
-    ) {
-        result.total_files = cpu_result.total_files;
-        result.total_size = cpu_result.total_size;
-        result.file_types = cpu_result.file_types.clone();
-        result.extension_sizes = cpu_result.extension_sizes.clone();
-        result.empty_directories = true_empty_dirs;
-        result.subdirectories = cpu_result
-            .subdirectories
-            .clone()
-            .into_iter()
-            .map(|d| DirInfo {
-                path: d.path,
-                name: d.name,
-                total_size: d.total_size,
-                file_count: d.file_count,
-                dir_count: d.dir_count,
-                largest_file_size: d.largest_file_size,
-            })
-            .collect();
-
-        for info in &cpu_result.largest_files {
-            let modified = std::fs::metadata(&info.path)
-                .ok()
-                .and_then(|m| m.modified().ok())
-                .and_then(Self::format_timestamp);
-
-            result.largest_files.push(FileInfo {
-                path: info.path.clone(),
-                name: info.name.clone(),
-                size: info.size,
-                modified,
-                file_type: "file".to_string(),
-                extension: info.extension.clone(),
-            });
-        }
-
-        result.total_directories = raw_entries.iter().filter(|e| e.is_dir).count() as u64;
-        result.scanned_files = scanned_files;
-
-        let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
-        let mut reclaim_tier_sizes_acc: HashMap<String, u64> = HashMap::new();
-        let mut category_reclaimable_acc: HashMap<String, u64> = HashMap::new();
-        for entry in raw_entries {
-            if entry.is_dir {
-                continue;
-            }
-            let ext = Path::new(&entry.path)
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("")
-                .to_lowercase();
-            let cat = extension_to_category(&ext, &entry.path);
-            *category_sizes_acc.entry(cat.to_string()).or_insert(0) += entry.size;
-            let tier = classify_reclaimability(&ext, &entry.path.to_lowercase(), cat);
-            *reclaim_tier_sizes_acc.entry(tier.as_str().to_string()).or_insert(0) += entry.size;
-            if tier != ReclaimTier::Keep {
-                *category_reclaimable_acc.entry(cat.to_string()).or_insert(0) += entry.size;
-            }
-        }
-        result.category_sizes = category_sizes_acc;
-        result.reclaim_tier_sizes = reclaim_tier_sizes_acc;
-        result.category_reclaimable = category_reclaimable_acc;
     }
 }

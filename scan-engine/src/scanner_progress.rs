@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-
 impl FileScanner {
     pub fn scan_with_progress_sync<F>(
         &self,
@@ -156,7 +154,11 @@ impl FileScanner {
             });
         }));
 
-        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
+        let walk_entry_pairs: Vec<(String, bool)> = walk_entries
+            .iter()
+            .map(|e| (e.path().to_string_lossy().to_string(), e.file_type().is_dir()))
+            .collect();
+        let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entry_pairs);
 
         for entry_result in walk_entries {
             if cancel_flag.load(Ordering::Relaxed) {
