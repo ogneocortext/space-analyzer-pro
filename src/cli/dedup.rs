@@ -84,9 +84,15 @@ pub fn run_clean_analysis(
         ..Default::default()
     };
     let deduplicator = FileDeduplicator::with_config(config);
+    if !output_format.is_machine_readable() {
+        hprintln!("   🔍 Scanning for duplicate files (content hashing — this may take a while)...");
+    }
     let files = deduplicator
         .scan_directory(path)
         .map_err(|e| AppError::Validation(e.to_string()))?;
+    if !output_format.is_machine_readable() {
+        hprintln!("   📊 {} files indexed, finding duplicates...", files.len());
+    }
     let duplicate_groups = deduplicator.find_duplicates(files);
     if duplicate_groups.is_empty() {
         if output_format.is_machine_readable() {

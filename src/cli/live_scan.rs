@@ -106,6 +106,7 @@ impl LiveProgress {
     }
 
     /// Erase the live frame so the final report starts on a clean line.
+    #[allow(dead_code)]
     pub fn finish(&self) {
         if !self.enabled {
             return;

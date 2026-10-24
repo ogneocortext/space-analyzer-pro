@@ -27,7 +27,7 @@ const SAVE_HISTORY_TOP_N: usize = 250;
 #[allow(clippy::too_many_arguments)]
 pub fn scan_directory(
     path: &Path,
-    verbose: bool,
+    _verbose: bool,
     max_depth: Option<usize>,
     deep: bool,
     shallow: bool,
@@ -46,7 +46,7 @@ pub fn scan_directory(
     top_n: usize,
     save_history: bool,
     log_path: Option<String>,
-    no_animation: bool,
+    _no_animation: bool,
     min_age: Option<u64>,
     max_age: Option<u64>,
 ) -> AppResult<ScanReport> {
@@ -59,16 +59,20 @@ pub fn scan_directory(
             path.display()
         ))
     })?;
-    // Live, in-place progress for interactive runs. Only when stderr is a real
-    // terminal and the caller is not in a machine-output mode; otherwise it stays
-    // silent so redirected logs and `--stream`/`--progress-json` output stay clean.
+    // Live, in-place progress for interactive runs. Only when the caller is not
+    // in a machine-output mode; otherwise it stays silent so redirected logs and
+    // `--stream`/`--progress-json` output stay clean. Runs whenever stderr is a
+    // real terminal regardless of `--verbose`/`--no-animation` — those flags only
+    // control the fallback spinner and ANSI animation, not whether progress data
+    // is emitted.
     let show_live = !stream
         && !progress_json
-        && !no_animation
         && (std::io::stderr().is_terminal() || std::env::var("SPACE_ANALYZER_FORCE_LIVE").is_ok());
     let live = Arc::new(LiveProgress::new(show_live));
 
-    let spinner = if verbose && !show_live {
+    // Fallback spinner when live progress can't render (non-terminal stderr). Shows
+    // even without --verbose so the user knows the scan is running.
+    let spinner = if !show_live {
         let pb = animation::create_scan_spinner(&path.display().to_string());
         if deep {
             pb.set_message(format!("Scanning {} (deep mode)", path.display()));
@@ -80,6 +84,8 @@ pub fn scan_directory(
                 path.display(),
                 scan_engine::format_bytes(ms)
             ));
+        } else {
+            pb.set_message(format!("Scanning {}", path.display()));
         }
         Some(pb)
     } else {
@@ -255,8 +261,10 @@ pub fn scan_directory(
     if let Some(ref pb) = spinner {
         animation::finish_scan_spinner(pb, shared_result.total_files, duration);
     }
-    // Clear the live frame so the final report starts on a clean line.
-    live.finish();
+    // Note: we intentionally do NOT call live.finish() here. Clearing the live
+    // frame before output_results() prints would leave the user with a blank
+    // terminal between the last progress frame and the final report. The final
+    // progress state stays visible on stderr while the report prints on stdout.
 
     // Final progress-log line so a watcher knows the run is done.
     if let Ok(mut log) = progress_log_writer.lock() {

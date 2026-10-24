@@ -488,6 +488,25 @@ impl FileScanner {
 
         let gpu_result = processor.process(&raw_entries);
 
+        // Report progress after the compute-heavy post-processing finishes so the
+        // user isn't left staring at 99% with no feedback while large entry lists
+        // are aggregated, categorized, and sorted.
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            progress_callback(ScanProgress {
+                phase: "finalizing".to_string(),
+                entries_discovered: 0,
+                files_scanned: result.total_files,
+                directories_scanned: result.total_directories,
+                total_size: result.total_size,
+                current_file: "Computing file statistics".to_string(),
+                percentage: 99.5,
+                live_files: live_files.clone(),
+                file_type_counts: file_type_counts.clone(),
+                extension_sizes: extension_sizes_acc.clone(),
+                category_sizes: category_sizes_acc.clone(),
+            });
+        }));
+
         Self::apply_gpu_result(
             &mut result,
             gpu_result,

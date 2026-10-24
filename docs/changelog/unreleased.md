@@ -49,9 +49,26 @@
   `D:\Backup of Important Data for Windows 11 Upgrade\Native Media AI Studio\docs\screenshots\ux-audit-2026-10-24/`.
   Vision review confirmed they all show NMAI Studio UI, not Space Analyzer.
 
-## Scan progress streaming and Windows native build environment
+## Scan progress visibility fixes
 
-...
+### Fixed
+- **Live progress now renders by default** (`src/cli/scan.rs`): removed the `--verbose`
+  requirement and `--no-animation` gate from the live progress display. The live view
+  now renders whenever stderr is a terminal (or `SPACE_ANALYZER_FORCE_LIVE` is set),
+  regardless of animation flags. The fallback spinner also now shows without
+  `--verbose` when live progress can't render.
+- **Live progress no longer cleared before results** (`src/cli/scan.rs`): removed the
+  premature `live.finish()` call that cleared the last progress frame before `output_results()`
+  printed, leaving a blank gap between progress and the final report.
+- **GPU post-processing progress gap closed** (`scan-engine/src/scanner_progress.rs`):
+  added a "finalizing" progress callback (99.5%) after `processor.process()` completes,
+  so users no longer see 99% then silence while large entry lists are aggregated,
+  categorized, and sorted.
+- **`--clean` dedup progress messages** (`src/cli/dedup.rs`): added "Scanning for
+  duplicate files" and "N files indexed" messages before the content-hashing walk so
+  users know `--clean` is actively working instead of appearing stuck.
+
+## Scan progress streaming and Windows native build environment
 
 ### Changed
 - **Scan progress is reported during directory enumeration**, before the scanner
