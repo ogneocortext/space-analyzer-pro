@@ -30,9 +30,6 @@ blake3 = "1.8"
 num_cpus = "1.17"
 same-file = "1.0"
 
-# GPU acceleration
-gpu-compute = { path = "../../gpu-compute" }
-
 # Progress tracking and CLI
 indicatif = "0.18"
 console = "0.16"

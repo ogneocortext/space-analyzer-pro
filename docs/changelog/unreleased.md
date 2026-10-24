@@ -16,6 +16,12 @@
   giving a measurable speedup on large directory trees.
 - **`should_include_file` is now a static method** — no longer takes `&self` since
   it doesn't use instance state, making it safe to call from parallel closures.
+- **Directory size caching** — `scan_directory_sync` now checks each directory's
+  mtime against a persistent cache (`dir_cache` SQLite table). When a directory's
+  mtime matches the cached entry, its entire subtree is skipped and cached totals
+  (`total_size_bytes`, `file_count`) are reused instead of re-walking. Controlled
+  via the `--dir-cache` CLI flag, which also stores results back to the cache
+  after the scan for use on subsequent runs.
 
 ## CI pipeline
 

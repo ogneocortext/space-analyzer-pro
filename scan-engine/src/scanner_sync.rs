@@ -164,6 +164,12 @@ impl FileScanner {
 
         let mut raw_entries = Vec::new();
 
+        // --- Directory cache: load from options (populated by caller from DB) ---
+        let dir_cache = options.dir_cache.clone();
+        let mut skipped_dirs: Vec<(String, u64, u64)> = Vec::new();
+        let mut skip_dirs: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let include_hidden = options.include_hidden;
+
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
             walker = walker.max_depth(depth);
@@ -172,18 +178,69 @@ impl FileScanner {
             walker = walker.follow_links(false);
         }
 
+        // Walk the tree, pruning subtrees whose directory mtime matches the cache.
+        // WalkDir 2.5 doesn't have filter_entry, so we check each directory entry
+        // and track skipped dirs; files under skipped dirs are filtered below.
         let mut walk_entries = Vec::new();
-        for entry in walker.into_iter().filter_entry(|e| {
-            if options.include_hidden || e.depth() == 0 {
-                return true;
-            }
-            if !e.file_type().is_dir() {
-                return true;
-            }
-            !Self::dir_entry_is_hidden(e)
-        }) {
+        for entry in walker {
             match entry {
-                Ok(entry) => walk_entries.push(entry),
+                Ok(entry) => {
+                    let is_dir = entry.file_type().is_dir();
+                    let dir_path = entry.path().to_string_lossy().to_string();
+
+                    // Hidden-filter logic
+                    if !include_hidden && entry.depth() > 0 {
+                        if !is_dir {
+                            walk_entries.push(entry);
+                            continue;
+                        }
+                        if Self::dir_entry_is_hidden(&entry) {
+                            continue;
+                        }
+                    }
+
+                    // Directory cache skip
+                    if is_dir {
+                        if let Some(cache) = dir_cache.as_ref().and_then(|c| c.get(&dir_path)) {
+                            let (cached_size, cached_file_count, cached_mtime) = cache;
+                            if let Ok(meta) = entry.metadata() {
+                                if let Ok(mtime) = meta.modified() {
+                                    let mtime_unix = mtime
+                                        .duration_since(SystemTime::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_secs() as i64;
+                                    if mtime_unix == *cached_mtime {
+                                        skipped_dirs.push((
+                                            dir_path.clone(),
+                                            *cached_size,
+                                            *cached_file_count,
+                                        ));
+                                        skip_dirs.insert(dir_path);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // File under a skipped directory: skip processing
+                    if !is_dir {
+                        let mut parent = entry.path().parent();
+                        let mut under_skipped = false;
+                        while let Some(p) = parent {
+                            if skip_dirs.contains(&p.to_string_lossy().to_string()) {
+                                under_skipped = true;
+                                break;
+                            }
+                            parent = p.parent();
+                        }
+                        if under_skipped {
+                            continue;
+                        }
+                    }
+
+                    walk_entries.push(entry);
+                }
                 Err(error) => result.errors.push(format!("Traversal error: {error}")),
             }
         }
@@ -295,6 +352,24 @@ impl FileScanner {
             true_empty_dirs,
             scanned_files,
         );
+
+        // Add skipped directory totals from cache (dirs whose mtime matched,
+        // so their subtrees were not walked).
+        let skipped_size: u64 = skipped_dirs.iter().map(|(_, s, _)| *s).sum();
+        let skipped_files: u64 = skipped_dirs.iter().map(|(_, _, f)| *f).sum();
+        result.total_size += skipped_size;
+        result.total_files += skipped_files;
+        result.total_directories += skipped_dirs.len() as u64;
+        for (dir_path, cached_size, cached_file_count) in &skipped_dirs {
+            result.subdirectories.push(DirInfo {
+                path: crate::post_process::strip_verbatim(dir_path.clone()),
+                name: crate::post_process::extract_filename(dir_path),
+                total_size: *cached_size,
+                file_count: *cached_file_count,
+                dir_count: 0,
+                largest_file_size: 0,
+            });
+        }
 
         Ok(result)
     }

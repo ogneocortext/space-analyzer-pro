@@ -4,12 +4,13 @@
 //! Provides both library and binary interfaces for flexible integration.
 
 use anyhow::{Context, Result};
+use blake3::Hasher;
 use chrono::{DateTime, Utc};
-use gpu_compute::hash::BatchHasher;
 use same_file::is_same_file;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::io::copy;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use walkdir::WalkDir;
@@ -62,12 +63,13 @@ pub struct DeduplicationConfig {
     pub create_hard_links: bool,
     pub parallel_jobs: Option<usize>,
     /// Allow GPU-accelerated batch hashing when a compatible device is present.
-    /// When false the hasher stays on the CPU even if a GPU is detected, so the
-    /// "GPU acceleration" user setting can actually turn the GPU off.
+    /// Retained for backward compatibility; hashing is always CPU-based now.
+    #[deprecated(since = "1.1.0", note = "Hashing is always CPU-based")]
     pub use_gpu: bool,
 }
 
 impl Default for DeduplicationConfig {
+    #[allow(deprecated)]
     fn default() -> Self {
         Self {
             min_file_size: 1024, // 1KB minimum
@@ -84,18 +86,36 @@ impl Default for DeduplicationConfig {
             dry_run: true,
             create_hard_links: true,
             parallel_jobs: Some(num_cpus::get()),
-            use_gpu: true,
+            use_gpu: false,
         }
     }
 }
 
 type ProgressCallback = Box<dyn Fn(usize) + Send + Sync>;
 
+/// Result of hashing a single file.
+struct HashResult {
+    path: PathBuf,
+    size: u64,
+    hash: String,
+    error: Option<String>,
+}
+
+/// Hash a single file using BLAKE3.
+fn hash_file(path: &Path) -> Result<(PathBuf, u64, String)> {
+    let metadata = fs::metadata(path)?;
+    let size = metadata.len();
+    let mut hasher = Hasher::new();
+    let mut file = fs::File::open(path)?;
+    copy(&mut file, &mut hasher)?;
+    let hash = hasher.finalize().to_string();
+    Ok((path.to_path_buf(), size, hash))
+}
+
 /// Main deduplicator structure
 pub struct FileDeduplicator {
     config: DeduplicationConfig,
     progress: Arc<Mutex<Option<ProgressCallback>>>,
-    batch_hasher: BatchHasher,
 }
 
 impl FileDeduplicator {
@@ -106,12 +126,9 @@ impl FileDeduplicator {
 
     /// Create a new deduplicator with custom configuration
     pub fn with_config(config: DeduplicationConfig) -> Self {
-        let gpu_info = gpu_compute::device::GpuInfo::detect();
-        let use_gpu = config.use_gpu && gpu_info.available;
         Self {
             config,
             progress: Arc::new(Mutex::new(None)),
-            batch_hasher: BatchHasher::new().with_gpu(use_gpu),
         }
     }
 
@@ -191,9 +208,28 @@ impl FileDeduplicator {
             }
         }
 
-        // Batch hash all files using GPU-accelerated hasher
-        let paths: Vec<_> = file_paths.iter().map(|(p, _, _, _)| p.clone()).collect();
-        let hash_results = self.batch_hasher.hash_files(&paths);
+        // Hash all files using BLAKE3 (CPU)
+        let mut hash_results = Vec::new();
+        for (file_path, _, _, _) in &file_paths {
+            match hash_file(file_path) {
+                Ok((p, size, hash)) => {
+                    hash_results.push(HashResult {
+                        path: p,
+                        size,
+                        hash,
+                        error: None,
+                    });
+                }
+                Err(e) => {
+                    hash_results.push(HashResult {
+                        path: file_path.clone(),
+                        size: 0,
+                        hash: String::new(),
+                        error: Some(e.to_string()),
+                    });
+                }
+            }
+        }
 
         // Build FileInfo list
         for (i, hash_result) in hash_results.into_iter().enumerate() {

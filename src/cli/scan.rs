@@ -38,6 +38,7 @@ pub fn scan_directory(
     threads: usize,
     no_gpu: bool,
     cache: bool,
+    dir_cache: bool,
     stream: bool,
     progress_json: bool,
     progress_log: Option<String>,
@@ -127,6 +128,11 @@ pub fn scan_directory(
     } else {
         None
     };
+    let dir_cache: Option<HashMap<String, (u64, u64, i64)>> = if dir_cache {
+        Database::default_open().ok().and_then(|db| db.load_dir_cache(&cache_key).ok())
+    } else {
+        None
+    };
 
     let options = ScanOptions {
         min_size,
@@ -138,6 +144,7 @@ pub fn scan_directory(
         num_threads: threads,
         top_n,
         file_cache,
+        dir_cache: dir_cache.clone(),
         gpu_acceleration: !no_gpu,
         ..depth_mode
     };
@@ -255,6 +262,35 @@ pub fn scan_directory(
                     cache_key, e
                 )
             });
+
+            // Save directory cache: compute per-directory totals from raw
+            // entries, plus any dirs skipped via cache (unchanged subtrees).
+            if dir_cache.is_some() {
+                let mut dir_totals: HashMap<String, (u64, u64)> = HashMap::new();
+                for dir in &shared_result.subdirectories {
+                    dir_totals.insert(
+                        dir.path.clone(),
+                        (dir.total_size, dir.file_count),
+                    );
+                }
+                let dir_entries: Vec<(String, u64, u64, i64)> = dir_totals
+                    .into_iter()
+                    .map(|(path, (size, count))| {
+                        let mtime = shared_result
+                            .scanned_files
+                            .get(&path)
+                            .map(|(_, m)| *m)
+                            .unwrap_or(0);
+                        (path, size, count, mtime)
+                    })
+                    .collect();
+                let _ = db.save_dir_cache(&cache_key, &dir_entries).map_err(|e| {
+                    eprintln!(
+                        "⚠️ Could not save directory cache '{}': {}",
+                        cache_key, e
+                    )
+                });
+            }
         }
     }
 

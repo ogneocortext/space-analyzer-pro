@@ -44,7 +44,7 @@ pub fn run_clean_analysis(
     output_format: OutputFormat,
     min_size: Option<u64>,
     max_size: Option<u64>,
-    no_gpu: bool,
+    _no_gpu: bool,
     apply: bool,
     yes: bool,
     scan_id: Option<i64>,
@@ -80,7 +80,6 @@ pub fn run_clean_analysis(
         max_file_size: max_size,
         dry_run: !apply,
         create_hard_links: true,
-        use_gpu: !no_gpu,
         ..Default::default()
     };
     let deduplicator = FileDeduplicator::with_config(config);

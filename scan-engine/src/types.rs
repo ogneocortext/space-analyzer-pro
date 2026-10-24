@@ -121,6 +121,10 @@ pub struct ScanOptions {
     pub num_threads: usize,
     pub top_n: usize,
     pub file_cache: Option<HashMap<String, (u64, i64)>>,
+    /// Directory size cache: dir_path -> (total_size_bytes, file_count, mtime_unix).
+    /// When present, directories whose mtime matches the cache entry are skipped
+    /// during traversal, using the cached totals instead of re-walking.
+    pub dir_cache: Option<HashMap<String, (u64, u64, i64)>>,
 }
 
 impl Default for ScanOptions {
@@ -137,6 +141,7 @@ impl Default for ScanOptions {
             num_threads: 0,
             top_n: 100,
             file_cache: None,
+            dir_cache: None,
         }
     }
 }

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::SystemTime;
 use walkdir::WalkDir;
 
 use crate::categories::{ReclaimTier, classify_reclaimability, extension_to_category};

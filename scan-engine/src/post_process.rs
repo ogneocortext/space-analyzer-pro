@@ -148,7 +148,7 @@ fn extract_extension(path: &str) -> String {
 }
 
 /// Extract the filename basename from a path.
-fn extract_filename(path: &str) -> String {
+pub fn extract_filename(path: &str) -> String {
     Path::new(path)
         .file_name()
         .and_then(|n| n.to_str())
@@ -180,7 +180,7 @@ fn size_bucket(size: u64) -> String {
 }
 
 /// Strip the Windows extended-length verbatim prefix (`\\?\`).
-fn strip_verbatim(path: impl AsRef<std::path::Path>) -> String {
+pub fn strip_verbatim(path: impl AsRef<std::path::Path>) -> String {
     let text = path.as_ref().to_string_lossy().to_string();
     text.strip_prefix(r"\\?\").unwrap_or(&text).to_string()
 }

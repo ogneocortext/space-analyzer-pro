@@ -184,6 +184,10 @@ pub enum Commands {
         #[arg(long)]
         cache: bool,
 
+        /// Enable directory cache (skip unchanged subtrees from previous scan)
+        #[arg(long)]
+        dir_cache: bool,
+
         /// Export results to a file (parent directories are created)
         #[arg(long)]
         export: Option<String>,

@@ -190,6 +190,7 @@ impl Database {
             "settings",
             "workflow_executions",
             "file_cache",
+            "dir_cache",
             "file_embeddings",
             "duplicate_analysis",
         ];
@@ -577,6 +578,33 @@ impl Database {
                 self.conn.execute("PRAGMA user_version = 10", [])?;
             }
         }
+        if user_version < 11 {
+            self.conn.execute_batch("BEGIN IMMEDIATE")?;
+            let migration_result = (|| -> rusqlite::Result<()> {
+                self.conn.execute_batch(
+                    "CREATE TABLE IF NOT EXISTS dir_cache (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        scan_path TEXT NOT NULL,
+                        dir_path TEXT NOT NULL,
+                        total_size_bytes INTEGER NOT NULL,
+                        file_count INTEGER NOT NULL,
+                        mtime_unix INTEGER NOT NULL,
+                        updated_at TEXT NOT NULL,
+                        UNIQUE(scan_path, dir_path)
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_dir_cache_scan_path ON dir_cache(scan_path);
+                    CREATE INDEX IF NOT EXISTS idx_dir_cache_dir_path ON dir_cache(dir_path);",
+                )?;
+                self.conn.execute("PRAGMA user_version = 11", [])?;
+                Ok(())
+            })();
+            if migration_result.is_err() {
+                let _ = self.conn.execute_batch("ROLLBACK");
+                migration_result?;
+            } else {
+                self.conn.execute_batch("COMMIT")?;
+            }
+        }
         Ok(())
     }
 
@@ -677,6 +705,18 @@ impl Database {
             );
             CREATE INDEX IF NOT EXISTS idx_file_cache_scan_path ON file_cache(scan_path);
             CREATE INDEX IF NOT EXISTS idx_file_cache_file_path ON file_cache(file_path);
+            CREATE TABLE IF NOT EXISTS dir_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scan_path TEXT NOT NULL,
+                dir_path TEXT NOT NULL,
+                total_size_bytes INTEGER NOT NULL,
+                file_count INTEGER NOT NULL,
+                mtime_unix INTEGER NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(scan_path, dir_path)
+            );
+            CREATE INDEX IF NOT EXISTS idx_dir_cache_scan_path ON dir_cache(scan_path);
+            CREATE INDEX IF NOT EXISTS idx_dir_cache_dir_path ON dir_cache(dir_path);
         ")?;
         Ok(())
     }
@@ -815,6 +855,67 @@ impl Database {
     pub fn delete_file_cache(&self, scan_path: &str) -> rusqlite::Result<usize> {
         self.conn.execute(
             "DELETE FROM file_cache WHERE scan_path = ?1",
+            params![scan_path],
+        )
+    }
+
+    /// Save directory cache entries for a scan path.
+    /// Each entry: (dir_path, total_size_bytes, file_count, mtime_unix).
+    pub fn save_dir_cache(
+        &self,
+        scan_path: &str,
+        entries: &[(String, u64, u64, i64)],
+    ) -> rusqlite::Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        {
+            tx.execute(
+                "DELETE FROM dir_cache WHERE scan_path = ?1",
+                params![scan_path],
+            )?;
+            let mut stmt = tx.prepare(
+                "INSERT INTO dir_cache (scan_path, dir_path, total_size_bytes, file_count, mtime_unix, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)"
+            )?;
+            let now = chrono::Utc::now().to_rfc3339();
+            for (dir_path, total_size, file_count, mtime) in entries {
+                stmt.execute(params![scan_path, dir_path, *total_size as i64, *file_count as i64, mtime, now])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Load directory cache entries for a scan path.
+    /// Returns HashMap<dir_path, (total_size_bytes, file_count, mtime_unix)>.
+    pub fn load_dir_cache(
+        &self,
+        scan_path: &str,
+    ) -> rusqlite::Result<HashMap<String, (u64, u64, i64)>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT dir_path, total_size_bytes, file_count, mtime_unix FROM dir_cache WHERE scan_path = ?1"
+        )?;
+        let rows = stmt.query_map(params![scan_path], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                (
+                    row.get::<_, i64>(1)? as u64,
+                    row.get::<_, i64>(2)? as u64,
+                    row.get::<_, i64>(3)?,
+                ),
+            ))
+        })?;
+        let mut map = HashMap::new();
+        for row in rows {
+            let (path, data) = row?;
+            map.insert(path, data);
+        }
+        Ok(map)
+    }
+
+    /// Delete directory cache entries for a scan path
+    pub fn delete_dir_cache(&self, scan_path: &str) -> rusqlite::Result<usize> {
+        self.conn.execute(
+            "DELETE FROM dir_cache WHERE scan_path = ?1",
             params![scan_path],
         )
     }
