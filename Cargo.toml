@@ -95,7 +95,7 @@ humantime = "2.3"
 bytesize = "2.4"
 
 # Embedded SQLite database (self-contained persistence)
-rusqlite = { version = "0.40", features = ["bundled", "chrono", "serde_json"] }
+rusqlite = { version = "0.41", features = ["bundled", "chrono", "serde_json"] }
 
 # HTTP client for optional Ollama AI service integration
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
