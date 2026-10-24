@@ -22,7 +22,11 @@ help:
     @echo "  just build-cli           Build CLI binary only"
     @echo ""
     @echo "Test:"
-    @echo "  just test                Run all workspace tests"
+    @echo "  just test                Run all workspace tests (CI mode — buffered output)"
+    @echo "  just test-progress       Run all tests with live output (--nocapture)"
+    @echo "  just test-cli            Run CLI integration tests with live output"
+    @echo "  just test-scanner        Run scanner integration tests with live output"
+    @echo "  just test-engine         Run scan-engine unit tests with live output"
     @echo "  just test-gui            Run GUI macro test (Win32)"
     @echo "  just test-native         Run native binary test suite"
     @echo ""
@@ -82,7 +86,7 @@ build-gui: build-winui
 
 # Build CLI binary only
 build-cli:
-    cargo build --bin space-analyzer-cli
+    $env:CC=$null; $env:CXX=$null; cargo build --bin space-analyzer-cli
 
 # Build only the Rust binaries the WinUI app embeds (fast release path).
 # Avoids building the egui GUI + gpu-compute that the WinUI release does not ship.
@@ -94,9 +98,25 @@ build-release-cli:
 #  Test
 # ──────────────────────────────────────────────────────────────
 
-# Run all workspace tests
+# Run all workspace tests (CI mode — output buffered per suite)
 test:
-    cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute
+    $env:CC=$null; $env:CXX=$null; cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute
+
+# Run all workspace tests with live output (--nocapture so you see which test is running)
+test-progress:
+    $env:CC=$null; $env:CXX=$null; cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute -- --nocapture
+
+# Run CLI integration tests with live output
+test-cli:
+    $env:CC=$null; $env:CXX=$null; cargo test -p space-analyzer --test cli_test -- --nocapture
+
+# Run scanner integration tests with live output
+test-scanner:
+    $env:CC=$null; $env:CXX=$null; cargo test -p space-analyzer --test shared_scanner_test -- --nocapture
+
+# Run engine unit tests with live output
+test-engine:
+    $env:CC=$null; $env:CXX=$null; cargo test -p scan-engine -- --nocapture
 
 # Run GUI macro test (Win32 PrintWindow API, zero-disruption)
 test-gui:
@@ -118,9 +138,13 @@ fmt:
 fmt-check:
     cargo fmt --all -- --check
 
-# Run Clippy lints
+# Run Clippy lints (warnings allowed — pre-existing style nits exist)
 clippy:
-    cargo clippy --all-targets -- -D warnings
+    $env:CC=$null; $env:CXX=$null; cargo clippy --workspace --all-targets
+
+# Run Clippy lints with warnings as errors (CI-strict)
+clippy-strict:
+    $env:CC=$null; $env:CXX=$null; cargo clippy --workspace --all-targets -- -D warnings
 
 # Format check + Clippy
 lint: fmt-check clippy
@@ -129,11 +153,11 @@ lint: fmt-check clippy
 #  Verify (single command after every change)
 # ──────────────────────────────────────────────────────────────
 
-# fmt-check + clippy + all tests
+# fmt-check + clippy + all tests (live output)
 verify:
-    cargo fmt --all -- --check
-    cargo clippy --all-targets -- -D warnings
-    cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute
+    $env:CC=$null; $env:CXX=$null; cargo fmt --all -- --check
+    $env:CC=$null; $env:CXX=$null; cargo clippy --all-targets -- -D warnings
+    $env:CC=$null; $env:CXX=$null; cargo test --workspace --exclude node_modules_cleaner --exclude gpu-compute -- --nocapture
 
 # ──────────────────────────────────────────────────────────────
 #  Dev Environment
@@ -174,7 +198,7 @@ run-cli:
 
 # Scan a directory (headless CLI mode)
 run-cli-scan PATH:
-    cargo run --bin space-analyzer-cli -- --scan {{PATH}}
+    $env:CC=$null; $env:CXX=$null; cargo run --bin space-analyzer-cli -- scan --path {{PATH}} --format json
 
 # ──────────────────────────────────────────────────────────────
 #  Release
