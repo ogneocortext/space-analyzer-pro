@@ -179,6 +179,22 @@ Ensure Rust target is installed:
 rustup target add x86_64-pc-windows-msvc
 ```
 
+**"MinGW/pthread unresolved symbols (`__mingw_*`, `pthread_*`, LNK2019/LNK1120)"**
+A `CC=gcc` (MinGW) user/process environment variable forces `cc`-compiling crates
+(`libsqlite3-sys`, `aws-lc-sys`) to emit MinGW object files, which the MSVC Rust
+toolchain's `link.exe` cannot consume. This typically comes from msys64 on PATH
+(`C:\msys64\ucrt64\bin`) and is injected into every PowerShell process.
+
+**Fix:** unset `CC`/`CXX` before building (process env wins over `[env]` config):
+```powershell
+$env:CC = $null
+$env:CXX = $null
+cargo build --workspace
+```
+Verify with `[Environment]::GetEnvironmentVariable("CC")` returning empty. With
+`CC`/`CXX` cleared, Cargo auto-detects the MSVC toolchain via
+`find-msvc-tools` (Visual Studio 2022 on `D:\`) and builds clean.
+
 **"Crate not found"**
 Update dependencies:
 ```powershell
