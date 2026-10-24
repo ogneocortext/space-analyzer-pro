@@ -24,13 +24,10 @@ crossbeam-channel = { workspace = true }
 
 # Additional dependencies
 sysinfo = "0.39"
-# GPU compute (always compiled; CUDA acceleration is optional)
-gpu-compute = { path = "../gpu-compute" }
 num_cpus = "1.17"
 
 [features]
 default = []
-cuda = ["gpu-compute/cuda"]
 
 [dev-dependencies]
 tempfile = "3"

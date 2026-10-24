@@ -7,6 +7,7 @@ use walkdir::WalkDir;
 
 use crate::categories::{ReclaimTier, classify_reclaimability, extension_to_category};
 use crate::formatting::allocated_size;
+use crate::post_process::{post_process_entries, PostProcessResult, RawFileEntry};
 use crate::types::{
     DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,
     SystemInfo,

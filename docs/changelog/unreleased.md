@@ -1,5 +1,22 @@
 # [Unreleased]
 
+## Scanner engine rework
+
+### Removed
+- **`gpu-compute` crate removed** — GPU acceleration was never implemented; post-processing
+  always fell back to CPU with rayon. The crate added build complexity and a CUDA
+  dependency path for zero runtime benefit. All post-processing (extension counts,
+  size histograms, top-N largest files, per-directory aggregates) now runs in
+  `scan-engine/src/post_process.rs` with rayon parallelism.
+
+### Changed
+- **Parallel metadata collection** — `scan_directory_sync` now walks the tree
+  sequentially (WalkDir is inherently sequential) but processes per-entry metadata
+  syscalls in parallel using `rayon::par_iter`. Results are merged after the walk,
+  giving a measurable speedup on large directory trees.
+- **`should_include_file` is now a static method** — no longer takes `&self` since
+  it doesn't use instance state, making it safe to call from parallel closures.
+
 ## CI pipeline
 
 ### Fixed

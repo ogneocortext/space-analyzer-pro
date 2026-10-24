@@ -8,7 +8,6 @@ edition = "2024"
 [workspace]
 members = [
     "scan-engine",
-    "gpu-compute",
     "native/win-usn",
     "native/file_deduplicator",
     "native/node_modules_cleaner",
@@ -49,7 +48,6 @@ path = "src/bin/ollama-features.rs"
 
 [dependencies]
 scan-engine = { path = "scan-engine" }
-gpu-compute = { path = "gpu-compute" }
 file-deduplicator = { path = "native/file_deduplicator" }
 # Core functionality (workspace-inherited)
 serde = { workspace = true }

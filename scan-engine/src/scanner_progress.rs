@@ -28,7 +28,7 @@ impl FileScanner {
             category_reclaimable: HashMap::new(),
         };
 
-        let mut raw_entries: Vec<gpu_compute::scan::RawFileEntry> = Vec::new();
+        let mut raw_entries: Vec<RawFileEntry> = Vec::new();
         let mut live_files: Vec<FileInfo> = Vec::new();
         let mut files_scanned: u64 = 0;
         let mut dirs_scanned: u64 = 0;
@@ -160,14 +160,7 @@ impl FileScanner {
 
         for entry_result in walk_entries {
             if cancel_flag.load(Ordering::Relaxed) {
-                let use_gpu =
-                    options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
-                let processor = gpu_compute::scan::GpuScanProcessor::new()
-                    .with_gpu(use_gpu)
-                    .with_scan_root(path)
-                    .with_top_n(100);
-
-                let gpu_result = processor.process(&raw_entries);
+                let gpu_result = post_process_entries(&raw_entries, 100, Some(Path::new(path)));
 
                 result.total_files = gpu_result.total_files;
                 result.total_size = gpu_result.total_size;
@@ -285,7 +278,7 @@ impl FileScanner {
                     if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
                         if cached_size == size && cached_mtime == mtime {
                             scanned_files.insert(path_str.clone(), (cached_size, cached_mtime));
-                            raw_entries.push(gpu_compute::scan::RawFileEntry {
+                            raw_entries.push(RawFileEntry {
                                 path: path_str.clone(),
                                 size: cached_size,
                                 is_dir,
@@ -370,7 +363,7 @@ impl FileScanner {
                 }
             }
 
-            if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
+            if !is_dir && !Self::should_include_file(&metadata, entry_path, &options) {
                 entries_processed += 1;
                 continue;
             }
@@ -379,7 +372,7 @@ impl FileScanner {
                 dirs_scanned += 1;
             }
 
-            raw_entries.push(gpu_compute::scan::RawFileEntry {
+            raw_entries.push(RawFileEntry {
                 path: path_str.clone(),
                 size,
                 is_dir,
@@ -487,13 +480,7 @@ impl FileScanner {
             });
         }));
 
-        let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
-        let processor = gpu_compute::scan::GpuScanProcessor::new()
-            .with_gpu(use_gpu)
-            .with_scan_root(path)
-            .with_top_n(options.top_n);
-
-        let gpu_result = processor.process(&raw_entries);
+        let gpu_result = post_process_entries(&raw_entries, options.top_n, Some(Path::new(path)));
 
         // Report progress after the compute-heavy post-processing finishes so the
         // user isn't left staring at 99% with no feedback while large entry lists
@@ -517,9 +504,9 @@ impl FileScanner {
             });
         }));
 
-        Self::apply_gpu_result(
+        Self::apply_cpu_result(
             &mut result,
-            gpu_result,
+            &gpu_result,
             &raw_entries,
             true_empty_dirs,
             scanned_files,

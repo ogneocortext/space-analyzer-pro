@@ -5,6 +5,7 @@
 
 pub mod categories;
 pub mod formatting;
+pub mod post_process;
 pub mod scanner;
 pub mod types;
 

@@ -1,6 +1,5 @@
 impl FileScanner {
     fn should_include_file(
-        &self,
         metadata: &std::fs::Metadata,
         path: &Path,
         options: &ScanOptions,
@@ -190,68 +189,108 @@ impl FileScanner {
         }
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
-        let mut scanned_files = HashMap::new();
-        for entry_result in walk_entries {
-            let entry_path = entry_result.path();
-            let path_str = entry_path.to_string_lossy().to_string();
-            let metadata = match entry_result.metadata() {
-                Ok(m) => m,
-                Err(e) => {
-                    let error_msg = if e.io_error().map(|io_err| io_err.kind())
-                        == Some(std::io::ErrorKind::PermissionDenied)
-                    {
-                        format!("Permission denied: {}", path_str)
-                    } else {
-                        format!("Metadata error: {}: {}", path_str, e)
-                    };
-                    result.errors.push(error_msg);
-                    continue;
+        // Parallel metadata processing with rayon. The WalkDir traversal is
+        // inherently sequential, but the per-entry metadata syscalls and
+        // categorization are independent and can be parallelised across cores.
+        // Each thread returns a local result; results are merged below.
+        use rayon::prelude::*;
+        use std::sync::Mutex;
+
+        let parallel_errors: Mutex<Vec<String>> = Mutex::new(Vec::new());
+        let parallel_results: Vec<_> = walk_entries
+            .par_iter()
+            .map(|entry_result| {
+                let entry_path = entry_result.path();
+                let path_str = entry_path.to_string_lossy().to_string();
+
+                let metadata = match entry_result.metadata() {
+                    Ok(m) => m,
+                    Err(e) => {
+                        let error_msg = if e.io_error().map(|io_err| io_err.kind())
+                            == Some(std::io::ErrorKind::PermissionDenied)
+                        {
+                            format!("Permission denied: {}", path_str)
+                        } else {
+                            format!("Metadata error: {}: {}", path_str, e)
+                        };
+                        return (path_str, 0u64, false, 0i64, String::new(), String::new(), ReclaimTier::Keep, false, Some(error_msg));
+                    }
+                };
+
+                let is_dir = metadata.is_dir();
+                let size = allocated_size(&metadata, entry_path);
+                let mtime = Self::get_mtime_unix(&metadata);
+
+                if !is_dir && !Self::should_include_file(&metadata, entry_path, &options) {
+                    return (path_str, size, false, mtime, String::new(), String::new(), ReclaimTier::Keep, false, None);
                 }
-            };
 
-            let is_dir = metadata.is_dir();
-            let size = allocated_size(&metadata, entry_path);
-            let mtime = Self::get_mtime_unix(&metadata);
+                let ext = Path::new(&entry_path)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                let cat = extension_to_category(&ext, &path_str);
+                let tier = classify_reclaimability(&ext, &path_str.to_lowercase(), cat);
 
-            if !is_dir && !self.should_include_file(&metadata, entry_path, &options) {
+                (path_str, size, is_dir, mtime, ext, cat.to_string(), tier, true, None)
+            })
+            .collect();
+
+        // Merge parallel results into shared state.
+        let mut _dirs_scanned = 0u64;
+        let mut _files_scanned = 0u64;
+        let mut _current_size = 0u64;
+        let mut scanned_files: HashMap<String, (u64, i64)> = HashMap::new();
+        let mut file_types: HashMap<String, u64> = HashMap::new();
+        let mut extension_sizes: HashMap<String, u64> = HashMap::new();
+        let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut reclaim_tier_sizes_acc: HashMap<String, u64> = HashMap::new();
+        let mut category_reclaimable_acc: HashMap<String, u64> = HashMap::new();
+
+        for (path_str, size, is_dir, mtime, ext, cat, tier, include, error) in parallel_results {
+            if let Some(err) = error {
+                parallel_errors.lock().unwrap().push(err);
+                continue;
+            }
+            if !include {
                 continue;
             }
 
-            if !is_dir {
-                if let Some(cache_map) = options.file_cache.as_ref() {
-                    if let Some(&(cached_size, cached_mtime)) = cache_map.get(&path_str) {
-                        if cached_size == size && cached_mtime == mtime {
-                            scanned_files.insert(path_str.clone(), (cached_size, cached_mtime));
-                            raw_entries.push(gpu_compute::scan::RawFileEntry {
-                                path: path_str,
-                                size: cached_size,
-                                is_dir,
-                            });
-                            continue;
-                        }
-                    }
-                }
+            if is_dir {
+                _dirs_scanned += 1;
+            } else {
+                _files_scanned += 1;
+                _current_size += size;
             }
 
-            scanned_files.insert(path_str.clone(), (size, mtime));
-            raw_entries.push(gpu_compute::scan::RawFileEntry {
-                path: path_str,
+            raw_entries.push(RawFileEntry {
+                path: path_str.clone(),
                 size,
                 is_dir,
             });
+
+            scanned_files.insert(path_str.clone(), (size, mtime));
+
+            *file_types.entry(ext.clone()).or_insert(0) += 1;
+            *extension_sizes.entry(ext.clone()).or_insert(0) += size;
+            *category_sizes_acc.entry(cat.clone()).or_insert(0) += size;
+            *reclaim_tier_sizes_acc.entry(tier.as_str().to_string()).or_insert(0) += size;
+            if tier != ReclaimTier::Keep {
+                *category_reclaimable_acc.entry(cat).or_insert(0) += size;
+            }
         }
 
-        let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
-        let processor = gpu_compute::scan::GpuScanProcessor::new()
-            .with_gpu(use_gpu)
-            .with_scan_root(path)
-            .with_top_n(options.top_n);
+        // Append any parallel-collected errors to the result.
+        if let Ok(errs) = parallel_errors.lock() {
+            result.errors.extend(errs.iter().cloned());
+        }
 
-        let gpu_result = processor.process(&raw_entries);
+        let gpu_result = post_process_entries(&raw_entries, options.top_n, Some(Path::new(path)));
 
-        Self::apply_gpu_result(
+        Self::apply_cpu_result(
             &mut result,
-            gpu_result,
+            &gpu_result,
             &raw_entries,
             true_empty_dirs,
             scanned_files,
@@ -425,20 +464,21 @@ impl FileScanner {
         })
     }
 
-    fn apply_gpu_result(
+    fn apply_cpu_result(
         result: &mut ScanResult,
-        gpu_result: gpu_compute::scan::GpuScanResult,
-        raw_entries: &[gpu_compute::scan::RawFileEntry],
+        cpu_result: &PostProcessResult,
+        raw_entries: &[RawFileEntry],
         true_empty_dirs: Vec<String>,
         scanned_files: HashMap<String, (u64, i64)>,
     ) {
-        result.total_files = gpu_result.total_files;
-        result.total_size = gpu_result.total_size;
-        result.file_types = gpu_result.file_types;
-        result.extension_sizes = gpu_result.extension_sizes;
+        result.total_files = cpu_result.total_files;
+        result.total_size = cpu_result.total_size;
+        result.file_types = cpu_result.file_types.clone();
+        result.extension_sizes = cpu_result.extension_sizes.clone();
         result.empty_directories = true_empty_dirs;
-        result.subdirectories = gpu_result
+        result.subdirectories = cpu_result
             .subdirectories
+            .clone()
             .into_iter()
             .map(|d| DirInfo {
                 path: d.path,
@@ -450,19 +490,19 @@ impl FileScanner {
             })
             .collect();
 
-        for info in gpu_result.largest_files {
+        for info in &cpu_result.largest_files {
             let modified = std::fs::metadata(&info.path)
                 .ok()
                 .and_then(|m| m.modified().ok())
                 .and_then(Self::format_timestamp);
 
             result.largest_files.push(FileInfo {
-                path: info.path,
-                name: info.name,
+                path: info.path.clone(),
+                name: info.name.clone(),
                 size: info.size,
                 modified,
                 file_type: "file".to_string(),
-                extension: info.extension,
+                extension: info.extension.clone(),
             });
         }
 
