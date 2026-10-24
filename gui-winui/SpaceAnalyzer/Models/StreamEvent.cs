@@ -14,6 +14,12 @@ public class StreamProgress
     [JsonPropertyName("type")]
     public string Type { get; set; } = "progress";
 
+    [JsonPropertyName("phase")]
+    public string Phase { get; set; } = "scanning";
+
+    [JsonPropertyName("entries_discovered")]
+    public ulong EntriesDiscovered { get; set; }
+
     [JsonPropertyName("files_scanned")]
     public ulong FilesScanned { get; set; }
 

@@ -13,6 +13,20 @@ A modern Windows desktop app built with WinUI 3 (Windows App SDK) and Fluent Des
 
 ### 1. Build the Rust scanner
 
+Build the MSVC Rust target from a Visual Studio developer environment. If your shell
+sets `CC=gcc` for MSYS2/MinGW, clear it for this build so native dependencies such as
+AWS-LC are compiled with MSVC too:
+
+```powershell
+cmd.exe /d /s /c 'call "D:\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat" >nul && set CC= && cargo build --release --bin space-analyzer-cli'
+```
+
+The repository targets `x86_64-pc-windows-msvc`; MinGW-generated C objects cannot be
+linked into that target. Keep `CC` unchanged for other shells and builds that need it.
+
+If you already opened a Visual Studio developer shell and `CC` is unset, the build
+command is simply:
+
 ```bash
 cargo build --release --bin space-analyzer-cli
 ```

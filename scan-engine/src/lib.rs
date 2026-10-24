@@ -103,6 +103,46 @@ mod tests {
     }
 
     #[test]
+    fn progress_reports_enumeration_before_scanning() {
+        use std::sync::atomic::AtomicBool;
+        use std::sync::{Arc, Mutex};
+
+        let dir = temp_scan_dir("progress_phases");
+        for i in 0..2_050 {
+            write_file(&dir, &format!("f{i}.txt"), b"x");
+        }
+
+        let phases = Arc::new(Mutex::new(Vec::new()));
+        let phases_for_callback = Arc::clone(&phases);
+        let scanner = FileScanner::new();
+        scanner
+            .scan_with_progress_sync(
+                dir.to_str().unwrap(),
+                ScanOptions::default(),
+                move |progress| {
+                    phases_for_callback.lock().unwrap().push(progress.phase);
+                },
+                &AtomicBool::new(false),
+                None,
+            )
+            .unwrap();
+
+        let phases = phases.lock().unwrap();
+        let enumerating = phases.iter().position(|phase| phase == "enumerating");
+        let scanning = phases.iter().position(|phase| phase == "scanning");
+        assert!(
+            enumerating.is_some(),
+            "enumeration should emit live progress"
+        );
+        assert!(scanning.is_some(), "file processing should emit progress");
+        assert!(
+            enumerating < scanning,
+            "enumeration progress must come first"
+        );
+        assert_eq!(phases.last().map(String::as_str), Some("complete"));
+    }
+
+    #[test]
     fn hidden_files_excluded_by_default() {
         let dir = temp_scan_dir("hidden");
         write_file(&dir, "visible.txt", b"data");

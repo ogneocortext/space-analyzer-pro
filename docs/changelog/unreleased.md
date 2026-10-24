@@ -1,5 +1,29 @@
 # [Unreleased]
 
+## Scan progress streaming and Windows native build environment
+
+### Changed
+- **Scan progress is reported during directory enumeration**, before the scanner
+  finishes buffering the tree. Progress events identify `enumerating`, `scanning`,
+  `processing`, and `complete` phases; enumeration reports discovered-entry counts
+  without mislabeling them as already-scanned files. File processing emits updates at
+  least every 500 ms or 1,024 entries. The CLI JSON stream and progress log carry the
+  phase data, and the WinUI scan status and assistant tool bubble show the current phase.
+
+### Fixed
+- **MSVC-targeted Rust builds no longer inherit MinGW C objects accidentally.** When
+  the shell exports `CC=gcc` from MSYS2, AWS-LC can compile GNU objects that the
+  `x86_64-pc-windows-msvc` linker cannot consume. Build from the Visual Studio
+  developer environment with `CC` cleared for that command; see `gui-winui/README.md`.
+
+### Verified
+- Release CLI build succeeded from the Visual Studio developer environment with
+  `CC` cleared; the WinUI output scanner matched the release binary.
+- `cargo fmt --all -- --check`, Clippy, and all 30 `scan-engine` tests passed.
+- Workspace tests passed with three slow live Ollama tests skipped. In the full
+  `just verify` run, those three live model requests timed out; the other 122 library
+  tests passed.
+
 ## Rust workspace modernization: edition 2024, full dependency refresh & cudarc 0.19 migration
 
 ### Changed

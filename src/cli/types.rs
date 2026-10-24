@@ -29,6 +29,8 @@ pub enum StreamEvent {
 /// enum's variants stay a similar size (each carries three live HashMaps).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProgressEvent {
+    pub phase: String,
+    pub entries_discovered: u64,
     pub files_scanned: u64,
     pub directories_scanned: u64,
     pub total_size: u64,

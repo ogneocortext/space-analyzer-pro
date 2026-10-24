@@ -17,6 +17,10 @@ pub struct FileInfo {
 /// Scan progress information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScanProgress {
+    /// Current scan phase: `enumerating`, `scanning`, `processing`, or `complete`.
+    pub phase: String,
+    /// Entries discovered during the enumeration phase (distinct from processed files).
+    pub entries_discovered: u64,
     pub files_scanned: u64,
     pub directories_scanned: u64,
     pub total_size: u64,

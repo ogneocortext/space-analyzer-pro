@@ -168,6 +168,8 @@ pub fn scan_directory(
             let current_file = progress.current_file.clone();
             if stream {
                 let event = StreamEvent::Progress(Box::new(ProgressEvent {
+                    phase: progress.phase.clone(),
+                    entries_discovered: progress.entries_discovered,
                     files_scanned: progress.files_scanned,
                     directories_scanned: progress.directories_scanned,
                     total_size: progress.total_size,
@@ -205,6 +207,7 @@ pub fn scan_directory(
                 if let Some(log) = log.as_mut() {
                     let event = serde_json::json!({
                         "type": "progress",
+                        "phase": progress.phase,
                         "files_scanned": progress.files_scanned,
                         "directories_scanned": progress.directories_scanned,
                         "total_size": progress.total_size,

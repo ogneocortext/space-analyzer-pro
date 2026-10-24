@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 impl FileScanner {
     pub fn scan_with_progress_sync<F>(
         &self,
@@ -59,6 +61,9 @@ impl FileScanner {
         }
 
         let mut walk_entries: Vec<walkdir::DirEntry> = Vec::new();
+        let mut enumerated_files = 0_u64;
+        let mut enumerated_dirs = 0_u64;
+        let mut last_progress = Instant::now();
         for entry in walker
             .into_iter()
             .filter_entry(|e| {
@@ -72,7 +77,41 @@ impl FileScanner {
             })
         {
             match entry {
-                Ok(e) => walk_entries.push(e),
+                Ok(e) => {
+                    if e.file_type().is_dir() {
+                        enumerated_dirs += 1;
+                    } else {
+                        enumerated_files += 1;
+                    }
+                    let current_path = e.path().to_string_lossy().into_owned();
+                    walk_entries.push(e);
+
+                    // WalkDir's first pass used to buffer the entire tree before
+                    // invoking the callback. On a large drive that looked like a
+                    // hung scan. Report discovery progress while the tree is being
+                    // enumerated; the percentage is intentionally 0 because the
+                    // total entry count is not known yet.
+                    if last_progress.elapsed() >= Duration::from_millis(500)
+                        || (enumerated_files + enumerated_dirs).is_multiple_of(2048)
+                    {
+                        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            progress_callback(ScanProgress {
+                                phase: "enumerating".to_string(),
+                                entries_discovered: enumerated_files + enumerated_dirs,
+                                files_scanned: 0,
+                                directories_scanned: 0,
+                                total_size: 0,
+                                current_file: current_path,
+                                percentage: 0.0,
+                                live_files: Vec::new(),
+                                file_type_counts: HashMap::new(),
+                                extension_sizes: HashMap::new(),
+                                category_sizes: HashMap::new(),
+                            });
+                        }));
+                        last_progress = Instant::now();
+                    }
+                }
                 Err(error) => {
                     // Previously this was `.filter_map(|e| e.ok())`, which silently
                     // dropped traversal errors (permission-denied directories,
@@ -96,6 +135,24 @@ impl FileScanner {
             }
         }
         let total_estimate = (walk_entries.len() as u64).max(1);
+        last_progress = Instant::now();
+
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            progress_callback(ScanProgress {
+                phase: "processing".to_string(),
+                entries_discovered: 0,
+                files_scanned: 0,
+                directories_scanned: 0,
+                total_size: 0,
+                current_file: "Preparing scan results".to_string(),
+                percentage: 0.0,
+                live_files: Vec::new(),
+                file_type_counts: HashMap::new(),
+                extension_sizes: HashMap::new(),
+                category_sizes: HashMap::new(),
+            });
+        }));
+
         let true_empty_dirs = Self::compute_true_empty_dirs(&walk_entries);
 
         for entry_result in walk_entries {
@@ -154,6 +211,8 @@ impl FileScanner {
                 };
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     progress_callback(ScanProgress {
+                        phase: "scanning".to_string(),
+                        entries_discovered: 0,
                         files_scanned: result.total_files,
                         directories_scanned: result.total_directories,
                         total_size: result.total_size,
@@ -267,7 +326,9 @@ impl FileScanner {
                             }
                             entries_processed += 1;
 
-                            if entries_processed.is_multiple_of(5_000) {
+                            if entries_processed.is_multiple_of(1_024)
+                                || last_progress.elapsed() >= Duration::from_millis(500)
+                            {
                                 // Sort + truncate once per callback instead of on every
                                 // push — live_files is only consumed here, so sorting
                                 // 1.5M times was pure waste.
@@ -282,6 +343,8 @@ impl FileScanner {
                                 let _ =
                                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                         progress_callback(ScanProgress {
+                                            phase: "scanning".to_string(),
+                                            entries_discovered: 0,
                                             files_scanned,
                                             directories_scanned: dirs_scanned,
                                             total_size: current_size,
@@ -293,6 +356,7 @@ impl FileScanner {
                                             category_sizes: category_sizes_acc.clone(),
                                         });
                                     }));
+                                last_progress = Instant::now();
                             }
 
                             continue;
@@ -370,7 +434,9 @@ impl FileScanner {
                 }
             }
 
-            if entries_processed.is_multiple_of(5_000) {
+            if entries_processed.is_multiple_of(1_024)
+                || last_progress.elapsed() >= Duration::from_millis(500)
+            {
                 // Sort + truncate once per callback instead of on every push.
                 live_files.sort_by_key(|b| std::cmp::Reverse(b.size));
                 live_files.truncate(100);
@@ -381,6 +447,8 @@ impl FileScanner {
                 };
                 let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     progress_callback(ScanProgress {
+                        phase: "scanning".to_string(),
+                        entries_discovered: 0,
                         files_scanned,
                         directories_scanned: dirs_scanned,
                         total_size: current_size,
@@ -392,8 +460,25 @@ impl FileScanner {
                         category_sizes: category_sizes_acc.clone(),
                     });
                 }));
+                last_progress = Instant::now();
             }
         }
+
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            progress_callback(ScanProgress {
+                phase: "processing".to_string(),
+                entries_discovered: 0,
+                files_scanned,
+                directories_scanned: dirs_scanned,
+                total_size: current_size,
+                current_file: "Finalizing scan results".to_string(),
+                percentage: 99.0,
+                live_files: live_files.clone(),
+                file_type_counts: file_type_counts.clone(),
+                extension_sizes: extension_sizes_acc.clone(),
+                category_sizes: category_sizes_acc.clone(),
+            });
+        }));
 
         let use_gpu = options.gpu_acceleration && gpu_compute::device::GpuInfo::is_available();
         let processor = gpu_compute::scan::GpuScanProcessor::new()
@@ -429,6 +514,8 @@ impl FileScanner {
 
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             progress_callback(ScanProgress {
+                phase: "complete".to_string(),
+                entries_discovered: 0,
                 files_scanned: result.total_files,
                 directories_scanned: result.total_directories,
                 total_size: result.total_size,

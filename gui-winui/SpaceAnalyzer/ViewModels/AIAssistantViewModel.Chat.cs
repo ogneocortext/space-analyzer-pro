@@ -220,11 +220,21 @@ public partial class AIAssistantViewModel
                             throttle.Restart();
                             // The bubble header already shows the tool name, so the
                             // progress text drops it to avoid "[run_scan] Running run_scan".
-                            var bare = p.Percentage > 0
+                            var phase = p.Phase switch
+                            {
+                                "enumerating" => "discovering paths",
+                                "processing" => "processing results",
+                                _ => "scanning",
+                            };
+                            var bare = p.Phase == "enumerating"
+                                ? $"— {phase} · {p.EntriesDiscovered:N0} entries found…"
+                                : p.Phase == "processing"
+                                    ? $"— {phase}…"
+                                : p.Percentage > 0
                                 ? $"— {p.Percentage:0}% · {p.FilesScanned:N0} files…"
                                 : p.FilesScanned > 0
-                                    ? $"— {p.FilesScanned:N0} files…"
-                                    : "— …";
+                                    ? $"— {phase} · {p.FilesScanned:N0} files…"
+                                    : $"— {phase}…";
                             toolBubble.Content = $"[{fnName}] Running {bare}";
                             ThinkingStatus = $"Running {fnName} {bare}";
                         });

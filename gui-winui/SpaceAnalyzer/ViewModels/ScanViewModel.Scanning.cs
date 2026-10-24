@@ -25,7 +25,16 @@ public partial class ScanViewModel
             return;
         _lastProgressUpdate = now;
 
-        StatusMessage = $"Scanning: {progress.CurrentFile}";
+        var phase = progress.Phase switch
+        {
+            "enumerating" => "Discovering paths",
+            "processing" => "Processing results",
+            _ => "Scanning",
+        };
+        var discovered = progress.Phase == "enumerating"
+            ? $" ({progress.EntriesDiscovered:N0} entries found)"
+            : string.Empty;
+        StatusMessage = $"{phase}{discovered}: {progress.CurrentFile}";
         UpdatePartialResult(progress);
     }
 
