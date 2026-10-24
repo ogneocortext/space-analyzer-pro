@@ -3,7 +3,7 @@ use space_analyzer_pro_desktop::error::AppResult;
 use std::io::Write;
 
 use crate::cli::args::{OutputFormat, SearchArgs};
-use crate::cli::helpers::{display_path, parse_size, resolve_scan_path, validate_size_window};
+use crate::cli::helpers::{display_path, parse_size, resolve_scan_path, validate_age_window, validate_size_window};
 use crate::cli::sink;
 
 /// Run a real, bounded filesystem search over a directory tree.
@@ -26,12 +26,15 @@ pub fn run(args: SearchArgs, output_format: OutputFormat) -> AppResult<()> {
     let min = args.min_size.as_deref().map(parse_size).transpose()?;
     let max = args.max_size.as_deref().map(parse_size).transpose()?;
     validate_size_window(min, max)?;
+    validate_age_window(args.min_age, args.max_age)?;
 
     let query = SearchQuery {
         extension: args.extension.clone(),
         keyword: args.keyword.clone(),
         min_size: min,
         max_size: max,
+        min_age_days: args.min_age,
+        max_age_days: args.max_age,
         include_hidden: args.include_hidden,
         max_depth: args.max_depth,
         limit: args.limit,

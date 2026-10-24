@@ -47,6 +47,8 @@ pub fn scan_directory(
     save_history: bool,
     log_path: Option<String>,
     no_animation: bool,
+    min_age: Option<u64>,
+    max_age: Option<u64>,
 ) -> AppResult<ScanReport> {
     // A `Path` that cannot be represented as UTF-8 cannot be handed to the
     // native scanner (which takes `&str`). Fail loudly instead of silently
@@ -123,6 +125,8 @@ pub fn scan_directory(
     let options = ScanOptions {
         min_size,
         max_size,
+        min_age_days: min_age,
+        max_age_days: max_age,
         include_hidden,
         follow_symlinks,
         num_threads: threads,

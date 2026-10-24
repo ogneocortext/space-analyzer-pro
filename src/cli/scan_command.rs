@@ -22,6 +22,8 @@ pub struct ScanArgs {
     pub shallow: bool,
     pub min_size: Option<String>,
     pub max_size: Option<String>,
+    pub min_age: Option<u64>,
+    pub max_age: Option<u64>,
     pub include_hidden: bool,
     pub follow_symlinks: bool,
     pub threads: usize,
@@ -79,6 +81,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         .map(|s| helpers::parse_size(s))
         .transpose()?;
     helpers::validate_size_window(min_size, max_size)?;
+    helpers::validate_age_window(args.min_age, args.max_age)?;
 
     if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {
         animation::print_animated_banner();
@@ -132,6 +135,8 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         // GUI. `--save-history` remains accepted (the GUI passes it) but saving
         // is now unconditional for CLI scans, as it was before this refactor.
         args.no_anim,
+        args.min_age,
+        args.max_age,
     )?;
 
     // A scan that hit many permission-denied errors probably skipped protected

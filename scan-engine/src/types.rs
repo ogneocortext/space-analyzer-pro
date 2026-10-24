@@ -65,6 +65,10 @@ pub struct SearchQuery {
     pub min_size: Option<u64>,
     /// Maximum file size in bytes (inclusive).
     pub max_size: Option<u64>,
+    /// Only include files modified at least this many days ago.
+    pub min_age_days: Option<u64>,
+    /// Only include files modified no more than this many days ago.
+    pub max_age_days: Option<u64>,
     /// Include hidden files and directories (default: exclude, mirroring a scan).
     pub include_hidden: bool,
     /// Maximum traversal depth (default: unlimited so the whole subtree is searched).
@@ -105,6 +109,10 @@ pub struct ScanOptions {
     pub max_depth: Option<usize>,
     pub min_size: Option<u64>,
     pub max_size: Option<u64>,
+    /// Only include files modified at least this many days ago.
+    pub min_age_days: Option<u64>,
+    /// Only include files modified no more than this many days ago.
+    pub max_age_days: Option<u64>,
     pub include_hidden: bool,
     pub follow_symlinks: bool,
     pub gpu_acceleration: bool,
@@ -119,6 +127,8 @@ impl Default for ScanOptions {
             max_depth: None,
             min_size: None,
             max_size: None,
+            min_age_days: None,
+            max_age_days: None,
             include_hidden: false,
             follow_symlinks: false,
             gpu_acceleration: true,

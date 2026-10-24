@@ -5,6 +5,7 @@ pub mod bloat;
 pub mod db_command;
 pub mod dedup;
 pub mod dependencies;
+pub mod diff;
 pub mod helpers;
 pub mod history_command;
 pub mod live_scan;
@@ -21,6 +22,7 @@ pub mod search;
 pub mod semantic;
 pub mod settings_command;
 pub mod sink;
+pub mod system;
 pub mod types;
 pub mod usn;
 
@@ -44,6 +46,8 @@ pub fn main() -> AppResult<()> {
             deep,
             min_size,
             max_size,
+            min_age,
+            max_age,
             include_hidden,
             threads,
             no_gpu,
@@ -73,6 +77,8 @@ pub fn main() -> AppResult<()> {
                 shallow,
                 min_size,
                 max_size,
+                min_age,
+                max_age,
                 include_hidden,
                 follow_symlinks,
                 threads,
@@ -236,5 +242,7 @@ pub fn main() -> AppResult<()> {
         }
         Commands::Ask { question, scan_id } => ai_command::run_ask(&question, scan_id),
         Commands::Search(args) => search::run(args, output_format),
+        Commands::Diff(args) => diff::run(args, output_format),
+        Commands::System(args) => system::run(args, output_format),
     }
 }

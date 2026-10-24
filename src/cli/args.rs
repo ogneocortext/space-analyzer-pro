@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand, ValueEnum};
+use crate::cli::system::SystemArgs;
 use std::fmt;
 
 const EXAMPLES: &str = "\
@@ -152,6 +153,14 @@ pub enum Commands {
         /// Maximum file size to include (e.g. 100M, 1GB)
         #[arg(long)]
         max_size: Option<String>,
+
+        /// Only include files modified at least this many days ago
+        #[arg(long, value_parser = crate::cli::helpers::parse_age_days)]
+        min_age: Option<u64>,
+
+        /// Only include files modified no more than this many days ago
+        #[arg(long, value_parser = crate::cli::helpers::parse_age_days)]
+        max_age: Option<u64>,
 
         /// Include hidden files and directories
         #[arg(long)]
@@ -614,9 +623,16 @@ pub enum Commands {
     /// duplicated across drives/paths or present in multiple versions
     AppInventory,
 
+    /// Compare two saved scan-history records side by side (before/after).
+    Diff(DiffArgs),
+
     /// Real, bounded filesystem search: walk a directory tree and return every
     /// file matching the extension/keyword/size filters (capped at --limit).
     Search(SearchArgs),
+
+    /// System cleanup shortcuts (hibernation, WinSxS, VHD, shadow copies,
+    /// Recycle Bin). Read-only by default; pass --apply --yes to execute.
+    System(SystemArgs),
 }
 
 /// Arguments for the `search` subcommand.
@@ -651,6 +667,14 @@ pub struct SearchArgs {
     #[arg(long)]
     pub max_size: Option<String>,
 
+    /// Only include files modified at least this many days ago
+    #[arg(long, value_parser = crate::cli::helpers::parse_age_days)]
+    pub min_age: Option<u64>,
+
+    /// Only include files modified no more than this many days ago
+    #[arg(long, value_parser = crate::cli::helpers::parse_age_days)]
+    pub max_age: Option<u64>,
+
     /// Include hidden files and directories
     #[arg(long)]
     pub include_hidden: bool,
@@ -668,6 +692,18 @@ pub struct SearchArgs {
     /// the interactive live view.
     #[arg(long)]
     pub progress_json: bool,
+}
+
+/// Arguments for the `diff` subcommand.
+#[derive(Debug, Args)]
+pub struct DiffArgs {
+    /// First scan record ID to compare (baseline).
+    #[arg(long)]
+    pub id1: i64,
+
+    /// Second scan record ID to compare (comparison).
+    #[arg(long)]
+    pub id2: i64,
 }
 
 /// Sub-commands for inspecting NTFS USN change journals.

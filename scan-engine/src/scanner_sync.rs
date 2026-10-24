@@ -23,6 +23,36 @@ impl FileScanner {
             }
         }
 
+        if !Self::is_within_age_window(metadata, options) {
+            return false;
+        }
+
+        true
+    }
+
+    /// True when the file's modification age falls within `[min_age_days, max_age_days]`.
+    /// `None` bounds are unbounded. Age is measured in whole days since modification.
+    fn is_within_age_window(metadata: &std::fs::Metadata, options: &ScanOptions) -> bool {
+        let Some(_) = options.min_age_days.or(options.max_age_days) else {
+            return true;
+        };
+        let Ok(modified) = metadata.modified() else {
+            return true;
+        };
+        let Ok(age_seconds) = modified.elapsed() else {
+            return true;
+        };
+        let age_days = age_seconds.as_secs() / 86_400;
+        if let Some(min) = options.min_age_days {
+            if age_days < min {
+                return false;
+            }
+        }
+        if let Some(max) = options.max_age_days {
+            if age_days > max {
+                return false;
+            }
+        }
         true
     }
 
@@ -329,6 +359,14 @@ impl FileScanner {
                 if size > max {
                     continue;
                 }
+            }
+
+            if !Self::is_within_age_window(&metadata, &ScanOptions {
+                min_age_days: query.min_age_days,
+                max_age_days: query.max_age_days,
+                ..ScanOptions::default()
+            }) {
+                continue;
             }
 
             if let Some(ext) = &ext_filter {

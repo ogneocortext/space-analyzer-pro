@@ -111,6 +111,33 @@ pub fn validate_size_window(min_size: Option<u64>, max_size: Option<u64>) -> App
     Ok(())
 }
 
+/// Parse a whole-number of days for age filtering.
+///
+/// Rejects negative values and non-integers. Returns `None` when the input is
+/// empty (caller should treat that as "no bound").
+pub fn parse_age_days(s: &str) -> Result<Option<u64>, AppError> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
+    }
+    let days: u64 = trimmed
+        .parse()
+        .map_err(|e| AppError::Validation(format!("Invalid age '{s}': {e}")))?;
+    Ok(Some(days))
+}
+
+/// Validate an age window: `--min-age` must not exceed `--max-age`.
+pub fn validate_age_window(min_age: Option<u64>, max_age: Option<u64>) -> AppResult<()> {
+    if let (Some(min), Some(max)) = (min_age, max_age) {
+        if min > max {
+            return Err(AppError::Validation(format!(
+                "--min-age ({min} days) is greater than --max-age ({max} days); no file can match",
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Find the volume that actually contains `path`.
 ///
 /// Uses a longest-prefix match so nested mount points (for example `C:\` and
