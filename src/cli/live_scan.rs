@@ -84,7 +84,8 @@ impl LiveProgress {
                 // as files_scanned / total_estimate.
                 let bar = progress_bar(p.percentage, 24);
                 let eta = if p.percentage > 0.0 && elapsed_secs > 0.0 {
-                    let remaining = (100.0 - p.percentage as f64) / p.percentage as f64 * elapsed_secs;
+                    let remaining =
+                        (100.0 - p.percentage as f64) / p.percentage as f64 * elapsed_secs;
                     fmt_dur(Duration::from_secs_f64(remaining))
                 } else {
                     "—".to_string()

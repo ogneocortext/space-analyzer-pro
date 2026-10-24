@@ -285,10 +285,22 @@ mod tests {
     #[test]
     fn parse_age_days_rejects_empty_negative_and_fractional() {
         assert!(parse_age_days("").is_err(), "empty age must be rejected");
-        assert!(parse_age_days("   ").is_err(), "whitespace-only age must be rejected");
-        assert!(parse_age_days("-5").is_err(), "negative age must be rejected");
-        assert!(parse_age_days("1.5").is_err(), "fractional days must be rejected");
-        assert!(parse_age_days("abc").is_err(), "non-numeric age must be rejected");
+        assert!(
+            parse_age_days("   ").is_err(),
+            "whitespace-only age must be rejected"
+        );
+        assert!(
+            parse_age_days("-5").is_err(),
+            "negative age must be rejected"
+        );
+        assert!(
+            parse_age_days("1.5").is_err(),
+            "fractional days must be rejected"
+        );
+        assert!(
+            parse_age_days("abc").is_err(),
+            "non-numeric age must be rejected"
+        );
     }
 
     #[test]

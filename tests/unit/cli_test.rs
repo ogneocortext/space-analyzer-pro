@@ -359,15 +359,14 @@ fn cli_diff_missing_record_fails_with_clear_message() {
         .output()
         .expect("diff must execute");
 
-    assert!(
-        !out.status.success(),
-        "diff with missing records must fail"
-    );
+    assert!(!out.status.success(), "diff with missing records must fail");
     let stderr = String::from_utf8_lossy(&out.stderr);
     let stdout = String::from_utf8_lossy(&out.stdout);
     let combined = format!("{stderr}{stdout}");
     assert!(
-        combined.contains("No scan found") || combined.contains("Database") || combined.contains("id"),
+        combined.contains("No scan found")
+            || combined.contains("Database")
+            || combined.contains("id"),
         "error must name the missing scan id or DB, got: {combined}"
     );
     info!("PASS");

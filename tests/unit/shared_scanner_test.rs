@@ -485,114 +485,106 @@ proptest! {
 
 #[test]
 fn scan_respects_min_age_days() {
-        info!("Verifying min_age_days excludes recently-modified files");
-        let tmp = tempfile::TempDir::new().expect("can create TempDir");
-        let old_file = tmp.path().join("old.txt");
-        std::fs::write(&old_file, b"old content").unwrap();
-        std::fs::OpenOptions::new()
-            .write(true)
-            .open(&old_file)
-            .unwrap()
-            .set_modified(SystemTime::now() - Duration::from_secs(5 * 86_400))
-            .expect("set old mtime");
+    info!("Verifying min_age_days excludes recently-modified files");
+    let tmp = tempfile::TempDir::new().expect("can create TempDir");
+    let old_file = tmp.path().join("old.txt");
+    std::fs::write(&old_file, b"old content").unwrap();
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&old_file)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(5 * 86_400))
+        .expect("set old mtime");
 
-        let new_file = tmp.path().join("new.txt");
-        std::fs::write(&new_file, b"new content").unwrap();
+    let new_file = tmp.path().join("new.txt");
+    std::fs::write(&new_file, b"new content").unwrap();
 
-        let scanner = FileScanner::new();
+    let scanner = FileScanner::new();
 
-        // Files modified at least 3 days ago: old.txt qualifies, new.txt does not.
-        let result = scanner
-            .scan_directory_sync(
-                tmp.path().to_str().unwrap(),
-                ScanOptions {
-                    min_age_days: Some(3),
-                    ..Default::default()
-                },
-            )
-            .expect("scan must succeed");
-        let paths: Vec<&str> = result
-            .scanned_files
-            .keys()
-            .map(|p| p.as_str())
-            .collect();
-        assert!(
-            paths.iter().any(|p| p.ends_with("old.txt")),
-            "old.txt (5 days old) should pass min_age=3"
-        );
-        assert!(
-            !paths.iter().any(|p| p.ends_with("new.txt")),
-            "new.txt (just created) should fail min_age=3"
-        );
-        info!("PASS");
-    }
+    // Files modified at least 3 days ago: old.txt qualifies, new.txt does not.
+    let result = scanner
+        .scan_directory_sync(
+            tmp.path().to_str().unwrap(),
+            ScanOptions {
+                min_age_days: Some(3),
+                ..Default::default()
+            },
+        )
+        .expect("scan must succeed");
+    let paths: Vec<&str> = result.scanned_files.keys().map(|p| p.as_str()).collect();
+    assert!(
+        paths.iter().any(|p| p.ends_with("old.txt")),
+        "old.txt (5 days old) should pass min_age=3"
+    );
+    assert!(
+        !paths.iter().any(|p| p.ends_with("new.txt")),
+        "new.txt (just created) should fail min_age=3"
+    );
+    info!("PASS");
+}
 
-    #[test]
-    fn scan_respects_max_age_days() {
-        info!("Verifying max_age_days excludes old files");
-        let tmp = tempfile::TempDir::new().expect("can create TempDir");
-        let old_file = tmp.path().join("old.txt");
-        std::fs::write(&old_file, b"old content").unwrap();
-        std::fs::OpenOptions::new()
-            .write(true)
-            .open(&old_file)
-            .unwrap()
-            .set_modified(SystemTime::now() - Duration::from_secs(5 * 86_400))
-            .expect("set old mtime");
+#[test]
+fn scan_respects_max_age_days() {
+    info!("Verifying max_age_days excludes old files");
+    let tmp = tempfile::TempDir::new().expect("can create TempDir");
+    let old_file = tmp.path().join("old.txt");
+    std::fs::write(&old_file, b"old content").unwrap();
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&old_file)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(5 * 86_400))
+        .expect("set old mtime");
 
-        let new_file = tmp.path().join("new.txt");
-        std::fs::write(&new_file, b"new content").unwrap();
+    let new_file = tmp.path().join("new.txt");
+    std::fs::write(&new_file, b"new content").unwrap();
 
-        let scanner = FileScanner::new();
+    let scanner = FileScanner::new();
 
-        // Files modified no more than 2 days ago: new.txt qualifies, old.txt does not.
-        let result = scanner
-            .scan_directory_sync(
-                tmp.path().to_str().unwrap(),
-                ScanOptions {
-                    max_age_days: Some(2),
-                    ..Default::default()
-                },
-            )
-            .expect("scan must succeed");
-        let paths: Vec<&str> = result
-            .scanned_files
-            .keys()
-            .map(|p| p.as_str())
-            .collect();
-        assert!(
-            !paths.iter().any(|p| p.ends_with("old.txt")),
-            "old.txt (5 days old) should fail max_age=2"
-        );
-        assert!(
-            paths.iter().any(|p| p.ends_with("new.txt")),
-            "new.txt (just created) should pass max_age=2"
-        );
-        info!("PASS");
-    }
+    // Files modified no more than 2 days ago: new.txt qualifies, old.txt does not.
+    let result = scanner
+        .scan_directory_sync(
+            tmp.path().to_str().unwrap(),
+            ScanOptions {
+                max_age_days: Some(2),
+                ..Default::default()
+            },
+        )
+        .expect("scan must succeed");
+    let paths: Vec<&str> = result.scanned_files.keys().map(|p| p.as_str()).collect();
+    assert!(
+        !paths.iter().any(|p| p.ends_with("old.txt")),
+        "old.txt (5 days old) should fail max_age=2"
+    );
+    assert!(
+        paths.iter().any(|p| p.ends_with("new.txt")),
+        "new.txt (just created) should pass max_age=2"
+    );
+    info!("PASS");
+}
 
-    #[test]
-    fn scan_inverted_age_window_matches_nothing() {
-        info!("Verifying inverted age window (min > max) matches nothing");
-        let tmp = tempfile::TempDir::new().expect("can create TempDir");
-        std::fs::write(tmp.path().join("file.txt"), b"content").unwrap();
+#[test]
+fn scan_inverted_age_window_matches_nothing() {
+    info!("Verifying inverted age window (min > max) matches nothing");
+    let tmp = tempfile::TempDir::new().expect("can create TempDir");
+    std::fs::write(tmp.path().join("file.txt"), b"content").unwrap();
 
-        let scanner = FileScanner::new();
+    let scanner = FileScanner::new();
 
-        // min_age=10, max_age=2: no file can be both ≥10 days old and ≤2 days old.
-        let result = scanner
-            .scan_directory_sync(
-                tmp.path().to_str().unwrap(),
-                ScanOptions {
-                    min_age_days: Some(10),
-                    max_age_days: Some(2),
-                    ..Default::default()
-                },
-            )
-            .expect("scan must succeed");
-        assert_eq!(
-            result.total_files, 0,
-            "inverted age window must match no files"
-        );
-        info!("PASS");
-    }
+    // min_age=10, max_age=2: no file can be both ≥10 days old and ≤2 days old.
+    let result = scanner
+        .scan_directory_sync(
+            tmp.path().to_str().unwrap(),
+            ScanOptions {
+                min_age_days: Some(10),
+                max_age_days: Some(2),
+                ..Default::default()
+            },
+        )
+        .expect("scan must succeed");
+    assert_eq!(
+        result.total_files, 0,
+        "inverted age window must match no files"
+    );
+    info!("PASS");
+}

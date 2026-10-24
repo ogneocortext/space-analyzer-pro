@@ -85,7 +85,9 @@ pub fn run_clean_analysis(
     };
     let deduplicator = FileDeduplicator::with_config(config);
     if !output_format.is_machine_readable() {
-        hprintln!("   🔍 Scanning for duplicate files (content hashing — this may take a while)...");
+        hprintln!(
+            "   🔍 Scanning for duplicate files (content hashing — this may take a while)..."
+        );
     }
     let files = deduplicator
         .scan_directory(path)

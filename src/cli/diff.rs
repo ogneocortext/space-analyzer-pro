@@ -84,8 +84,12 @@ pub fn run(args: DiffArgs, output_format: OutputFormat) -> AppResult<()> {
     let size_delta = after_report.total_size_bytes as i64 - before_report.total_size_bytes as i64;
     let files_delta = after_report.total_files as i64 - before_report.total_files as i64;
 
-    let category_deltas = diff_hash_map(&before_report.category_sizes, &after_report.category_sizes);
-    let directory_deltas = diff_dir_entries(&before_report.top_directories, &after_report.top_directories);
+    let category_deltas =
+        diff_hash_map(&before_report.category_sizes, &after_report.category_sizes);
+    let directory_deltas = diff_dir_entries(
+        &before_report.top_directories,
+        &after_report.top_directories,
+    );
     let file_deltas = diff_largest_files(&before_report.largest_files, &after_report.largest_files);
 
     if output_format.is_machine_readable() {
@@ -107,7 +111,10 @@ pub fn run(args: DiffArgs, output_format: OutputFormat) -> AppResult<()> {
             directory_deltas,
             file_deltas,
         };
-        println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).unwrap_or_default()
+        );
     } else {
         println!(
             "Scan diff: #{} ({}) → #{} ({})",
@@ -191,8 +198,7 @@ fn diff_hash_map(
     before: &std::collections::HashMap<String, u64>,
     after: &std::collections::HashMap<String, u64>,
 ) -> Vec<CategoryDelta> {
-    let mut all_keys: std::collections::HashSet<String> =
-        before.keys().cloned().collect();
+    let mut all_keys: std::collections::HashSet<String> = before.keys().cloned().collect();
     all_keys.extend(after.keys().cloned());
 
     let mut deltas: Vec<CategoryDelta> = all_keys
@@ -267,14 +273,10 @@ fn diff_dir_entries(before: &[DirEntry], after: &[DirEntry]) -> Vec<DirectoryDel
 
 /// Diff two `Vec<LargestFileEntry>` lists by path. Returns only changed entries.
 fn diff_largest_files(before: &[LargestFileEntry], after: &[LargestFileEntry]) -> Vec<FileDelta> {
-    let before_map: std::collections::HashMap<&str, &LargestFileEntry> = before
-        .iter()
-        .map(|f| (f.path.as_str(), f))
-        .collect();
-    let after_map: std::collections::HashMap<&str, &LargestFileEntry> = after
-        .iter()
-        .map(|f| (f.path.as_str(), f))
-        .collect();
+    let before_map: std::collections::HashMap<&str, &LargestFileEntry> =
+        before.iter().map(|f| (f.path.as_str(), f)).collect();
+    let after_map: std::collections::HashMap<&str, &LargestFileEntry> =
+        after.iter().map(|f| (f.path.as_str(), f)).collect();
 
     let mut all_paths: std::collections::HashSet<&str> = before_map.keys().copied().collect();
     all_paths.extend(after_map.keys().copied());
@@ -335,21 +337,30 @@ mod tests {
     #[test]
     fn format_size_delta_positive() {
         let s = format_size_delta(1024);
-        assert!(s.starts_with('+'), "positive delta must start with '+', got '{s}'");
+        assert!(
+            s.starts_with('+'),
+            "positive delta must start with '+', got '{s}'"
+        );
         assert!(s.contains("KB"), "expected KB human bytes, got '{s}'");
     }
 
     #[test]
     fn format_size_delta_negative() {
         let s = format_size_delta(-1024);
-        assert!(s.starts_with('-'), "negative delta must start with '-', got '{s}'");
+        assert!(
+            s.starts_with('-'),
+            "negative delta must start with '-', got '{s}'"
+        );
         assert!(s.contains("KB"), "expected KB human bytes, got '{s}'");
     }
 
     #[test]
     fn format_size_delta_zero() {
         let s = format_size_delta(0);
-        assert!(s.starts_with('+'), "zero delta must start with '+', got '{s}'");
+        assert!(
+            s.starts_with('+'),
+            "zero delta must start with '+', got '{s}'"
+        );
     }
 
     // ── diff_hash_map ───────────────────────────────────────────────────────
@@ -402,8 +413,8 @@ mod tests {
 
         let mut after = HashMap::new();
         after.insert("small".to_string(), 11); // delta +1
-        after.insert("big".to_string(), 10);   // delta -90
-        after.insert("mid".to_string(), 40);   // delta -10
+        after.insert("big".to_string(), 10); // delta -90
+        after.insert("mid".to_string(), 40); // delta -10
 
         let deltas = diff_hash_map(&before, &after);
         assert_eq!(deltas.len(), 3);

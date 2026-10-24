@@ -3,7 +3,9 @@ use space_analyzer_pro_desktop::error::AppResult;
 use std::io::Write;
 
 use crate::cli::args::{OutputFormat, SearchArgs};
-use crate::cli::helpers::{display_path, parse_size, resolve_scan_path, validate_age_window, validate_size_window};
+use crate::cli::helpers::{
+    display_path, parse_size, resolve_scan_path, validate_age_window, validate_size_window,
+};
 use crate::cli::sink;
 
 /// Run a real, bounded filesystem search over a directory tree.

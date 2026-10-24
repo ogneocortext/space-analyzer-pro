@@ -1,5 +1,5 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
 use crate::cli::system::SystemArgs;
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::fmt;
 
 const EXAMPLES: &str = "\
@@ -731,8 +731,8 @@ pub enum UsnCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
     use crate::cli::system::SystemCommand;
+    use clap::CommandFactory;
 
     #[test]
     fn cli_definition_is_valid() {
@@ -787,10 +787,13 @@ mod tests {
 
     #[test]
     fn min_and_max_age_parse_on_scan() {
-        let cli = Cli::try_parse_from(["sa", "scan", "-p", ".", "--min-age", "7", "--max-age", "30"])
-            .unwrap();
+        let cli =
+            Cli::try_parse_from(["sa", "scan", "-p", ".", "--min-age", "7", "--max-age", "30"])
+                .unwrap();
         match cli.command {
-            Commands::Scan { min_age, max_age, .. } => {
+            Commands::Scan {
+                min_age, max_age, ..
+            } => {
                 assert_eq!(min_age, Some(7));
                 assert_eq!(max_age, Some(30));
             }
@@ -801,7 +804,16 @@ mod tests {
     #[test]
     fn min_and_max_age_parse_on_search() {
         let cli = Cli::try_parse_from([
-            "sa", "search", "-p", ".", "--extension", "log", "--min-age", "7", "--max-age", "30",
+            "sa",
+            "search",
+            "-p",
+            ".",
+            "--extension",
+            "log",
+            "--min-age",
+            "7",
+            "--max-age",
+            "30",
         ])
         .unwrap();
         match cli.command {
@@ -848,8 +860,7 @@ mod tests {
 
     #[test]
     fn system_hibernate_parse_all_flags() {
-        let cli =
-            Cli::try_parse_from(["sa", "system", "--apply", "--yes", "hibernate"]).unwrap();
+        let cli = Cli::try_parse_from(["sa", "system", "--apply", "--yes", "hibernate"]).unwrap();
         match cli.command {
             Commands::System(args) => match args.command {
                 SystemCommand::Hibernate => {

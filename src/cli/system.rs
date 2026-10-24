@@ -88,8 +88,7 @@ fn available_shortcuts() -> Vec<CleanupShortcut> {
         CleanupShortcut {
             id: "hibernate".to_string(),
             name: "Hibernation file".to_string(),
-            description:
-                "Disables hibernation and removes hiberfil.sys (often several GB). \
+            description: "Disables hibernation and removes hiberfil.sys (often several GB). \
                  You lose the ability to hibernate, but sleep still works."
                 .to_string(),
             estimated_savings_bytes: hiberfil_size,
@@ -99,7 +98,9 @@ fn available_shortcuts() -> Vec<CleanupShortcut> {
             errors: hiberfil_size
                 .as_ref()
                 .filter(|s| **s == 0)
-                .map(|_| vec!["hiberfil.sys not found — hibernation may already be off".to_string()])
+                .map(|_| {
+                    vec!["hiberfil.sys not found — hibernation may already be off".to_string()]
+                })
                 .unwrap_or_default(),
         },
         CleanupShortcut {
@@ -141,8 +142,7 @@ fn available_shortcuts() -> Vec<CleanupShortcut> {
         CleanupShortcut {
             id: "recycle".to_string(),
             name: "Recycle Bin".to_string(),
-            description: "Empties the Recycle Bin for all users via PowerShell."
-                .to_string(),
+            description: "Empties the Recycle Bin for all users via PowerShell.".to_string(),
             estimated_savings_bytes: recycle_size,
             estimated_savings_human: recycle_size.map(scan_engine::format_bytes),
             requires_admin: false,
@@ -211,7 +211,10 @@ fn emit(
         }
     }
     if output_format.is_machine_readable() {
-        println!("{}", serde_json::to_string_pretty(&payload).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload).unwrap_or_default()
+        );
     } else if success {
         println!("✅ System action completed.");
     } else {
@@ -230,14 +233,14 @@ pub fn run(args: SystemArgs, output_format: crate::cli::args::OutputFormat) -> A
                     "count": shortcuts.len(),
                     "apply_required": true,
                 });
-                println!("{}", serde_json::to_string_pretty(&response).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&response).unwrap_or_default()
+                );
             } else {
                 println!("System cleanup shortcuts (run with --apply --yes to execute):");
                 for s in &shortcuts {
-                    let est = s
-                        .estimated_savings_human
-                        .as_deref()
-                        .unwrap_or("unknown");
+                    let est = s.estimated_savings_human.as_deref().unwrap_or("unknown");
                     println!(
                         "  {:<14} {} — {} (admin={}, est={})",
                         s.id, s.name, s.description, s.requires_admin, est
@@ -334,11 +337,7 @@ fn winsxs_preview(output_format: crate::cli::args::OutputFormat) -> AppResult<()
     emit(output_format, output, true, None)
 }
 
-fn run_vhd(
-    apply: bool,
-    yes: bool,
-    output_format: crate::cli::args::OutputFormat,
-) -> AppResult<()> {
+fn run_vhd(apply: bool, yes: bool, output_format: crate::cli::args::OutputFormat) -> AppResult<()> {
     if !apply {
         return vhd_preview(output_format);
     }
@@ -554,11 +553,7 @@ mod tests {
     fn available_shortcuts_have_names_and_descriptions() {
         for s in &available_shortcuts() {
             assert!(!s.name.is_empty(), "{} needs a name", s.id);
-            assert!(
-                !s.description.is_empty(),
-                "{} needs a description",
-                s.id
-            );
+            assert!(!s.description.is_empty(), "{} needs a description", s.id);
         }
     }
 
@@ -589,7 +584,15 @@ mod tests {
     #[test]
     fn emit_records_errors_when_failed() {
         let payload = serde_json::json!({ "action": "test" });
-        let result = emit(OutputFormat::Text, payload, false, Some(vec!["boom".to_string()]));
-        assert!(result.is_ok(), "emit itself must succeed even on action failure");
+        let result = emit(
+            OutputFormat::Text,
+            payload,
+            false,
+            Some(vec!["boom".to_string()]),
+        );
+        assert!(
+            result.is_ok(),
+            "emit itself must succeed even on action failure"
+        );
     }
 }
