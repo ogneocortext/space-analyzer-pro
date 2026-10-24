@@ -26,6 +26,8 @@ pub struct ScanProgress {
     pub total_size: u64,
     pub current_file: String,
     pub percentage: f32,
+    /// Seconds since the scan started.
+    pub elapsed_secs: f64,
     pub live_files: Vec<FileInfo>,
     pub file_type_counts: HashMap<String, u64>,
     pub extension_sizes: HashMap<String, u64>,

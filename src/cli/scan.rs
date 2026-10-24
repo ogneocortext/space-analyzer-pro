@@ -222,6 +222,7 @@ pub fn scan_directory(
                         "directories_scanned": progress.directories_scanned,
                         "total_size": progress.total_size,
                         "percentage": progress.percentage,
+                        "elapsed_secs": progress.elapsed_secs,
                         "current_file": current_file,
                     });
                     if let Ok(line) = serde_json::to_string(&event) {

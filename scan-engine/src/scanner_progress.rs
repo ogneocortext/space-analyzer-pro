@@ -38,6 +38,7 @@ impl FileScanner {
         let mut extension_sizes_acc: HashMap<String, u64> = HashMap::new();
         let mut category_sizes_acc: HashMap<String, u64> = HashMap::new();
         let mut entries_processed: u64 = 0;
+        let start_time = Instant::now();
 
         if let Some(log) = log.as_mut() {
             let _ = std::writeln!(
@@ -103,6 +104,7 @@ impl FileScanner {
                                 total_size: 0,
                                 current_file: current_path,
                                 percentage: 0.0,
+                                elapsed_secs: start_time.elapsed().as_secs_f64(),
                                 live_files: Vec::new(),
                                 file_type_counts: HashMap::new(),
                                 extension_sizes: HashMap::new(),
@@ -146,6 +148,7 @@ impl FileScanner {
                 total_size: 0,
                 current_file: "Preparing scan results".to_string(),
                 percentage: 0.0,
+                elapsed_secs: start_time.elapsed().as_secs_f64(),
                 live_files: Vec::new(),
                 file_type_counts: HashMap::new(),
                 extension_sizes: HashMap::new(),
@@ -213,11 +216,12 @@ impl FileScanner {
                     progress_callback(ScanProgress {
                         phase: "scanning".to_string(),
                         entries_discovered: 0,
-                        files_scanned: result.total_files,
-                        directories_scanned: result.total_directories,
-                        total_size: result.total_size,
+                        files_scanned,
+                        directories_scanned: dirs_scanned,
+                        total_size: current_size,
                         current_file: "Cancelled".to_string(),
                         percentage: pct,
+                        elapsed_secs: start_time.elapsed().as_secs_f64(),
                         live_files: live_files.clone(),
                         file_type_counts: file_type_counts.clone(),
                         extension_sizes: extension_sizes_acc.clone(),
@@ -342,19 +346,20 @@ impl FileScanner {
                                 };
                                 let _ =
                                     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                        progress_callback(ScanProgress {
-                                            phase: "scanning".to_string(),
-                                            entries_discovered: 0,
-                                            files_scanned,
-                                            directories_scanned: dirs_scanned,
-                                            total_size: current_size,
-                                            current_file: path_str.clone(),
-                                            percentage: pct,
-                                            live_files: live_files.clone(),
-                                            file_type_counts: file_type_counts.clone(),
-                                            extension_sizes: extension_sizes_acc.clone(),
-                                            category_sizes: category_sizes_acc.clone(),
-                                        });
+                                progress_callback(ScanProgress {
+                                    phase: "scanning".to_string(),
+                                    entries_discovered: 0,
+                                    files_scanned,
+                                    directories_scanned: dirs_scanned,
+                                    total_size: current_size,
+                                    current_file: path_str.clone(),
+                                    percentage: pct,
+                                    elapsed_secs: start_time.elapsed().as_secs_f64(),
+                                    live_files: live_files.clone(),
+                                    file_type_counts: file_type_counts.clone(),
+                                    extension_sizes: extension_sizes_acc.clone(),
+                                    category_sizes: category_sizes_acc.clone(),
+                                });
                                     }));
                                 last_progress = Instant::now();
                             }
@@ -454,6 +459,7 @@ impl FileScanner {
                         total_size: current_size,
                         current_file: path_str.clone(),
                         percentage: pct,
+                        elapsed_secs: start_time.elapsed().as_secs_f64(),
                         live_files: live_files.clone(),
                         file_type_counts: file_type_counts.clone(),
                         extension_sizes: extension_sizes_acc.clone(),
@@ -473,6 +479,7 @@ impl FileScanner {
                 total_size: current_size,
                 current_file: "Finalizing scan results".to_string(),
                 percentage: 99.0,
+                elapsed_secs: start_time.elapsed().as_secs_f64(),
                 live_files: live_files.clone(),
                 file_type_counts: file_type_counts.clone(),
                 extension_sizes: extension_sizes_acc.clone(),
@@ -490,16 +497,19 @@ impl FileScanner {
 
         // Report progress after the compute-heavy post-processing finishes so the
         // user isn't left staring at 99% with no feedback while large entry lists
-        // are aggregated, categorized, and sorted.
+        // are aggregated, categorized, and sorted. Uses the accumulated local
+        // counters (files_scanned, dirs_scanned, current_size) rather than
+        // result.* fields, which are still zero until apply_gpu_result runs below.
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             progress_callback(ScanProgress {
                 phase: "finalizing".to_string(),
                 entries_discovered: 0,
-                files_scanned: result.total_files,
-                directories_scanned: result.total_directories,
-                total_size: result.total_size,
+                files_scanned,
+                directories_scanned: dirs_scanned,
+                total_size: current_size,
                 current_file: "Computing file statistics".to_string(),
                 percentage: 99.5,
+                elapsed_secs: start_time.elapsed().as_secs_f64(),
                 live_files: live_files.clone(),
                 file_type_counts: file_type_counts.clone(),
                 extension_sizes: extension_sizes_acc.clone(),
@@ -540,6 +550,7 @@ impl FileScanner {
                 total_size: result.total_size,
                 current_file: "Complete".to_string(),
                 percentage: 100.0,
+                elapsed_secs: start_time.elapsed().as_secs_f64(),
                 live_files,
                 file_type_counts,
                 extension_sizes: extension_sizes_acc,

@@ -67,6 +67,14 @@
 - **`--clean` dedup progress messages** (`src/cli/dedup.rs`): added "Scanning for
   duplicate files" and "N files indexed" messages before the content-hashing walk so
   users know `--clean` is actively working instead of appearing stuck.
+- **Progress events now include `elapsed_secs`** (`scan-engine/src/types.rs`,
+  `scan-engine/src/scanner_progress.rs`, `src/cli/scan.rs`): every progress snapshot
+  records how long the scan has been running, so watchers and GUIs can display elapsed
+  time and compute estimated time remaining.
+- **`finalizing` progress callback uses accumulated counters** (`scan-engine/src/scanner_progress.rs`):
+  the 99.5% "finalizing" event now reports the correct `files_scanned` and `total_size`
+  instead of zeros, by using the in-loop accumulators rather than `result.*` fields
+  that aren't populated until `apply_gpu_result` runs.
 
 ## Scan progress streaming and Windows native build environment
 
