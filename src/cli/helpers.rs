@@ -113,17 +113,16 @@ pub fn validate_size_window(min_size: Option<u64>, max_size: Option<u64>) -> App
 
 /// Parse a whole-number of days for age filtering.
 ///
-/// Rejects negative values and non-integers. Returns `None` when the input is
-/// empty (caller should treat that as "no bound").
-pub fn parse_age_days(s: &str) -> Result<Option<u64>, AppError> {
+/// Rejects negative values and non-integers.
+pub fn parse_age_days(s: &str) -> Result<u64, AppError> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
-        return Ok(None);
+        return Err(AppError::Validation("Empty age string".to_string()));
     }
     let days: u64 = trimmed
         .parse()
         .map_err(|e| AppError::Validation(format!("Invalid age '{s}': {e}")))?;
-    Ok(Some(days))
+    Ok(days)
 }
 
 /// Validate an age window: `--min-age` must not exceed `--max-age`.
@@ -272,5 +271,32 @@ mod tests {
     fn display_path_strips_windows_extended_prefix() {
         assert_eq!(display_path(Path::new(r"\\?\C:\Temp")), r"C:\Temp");
         assert_eq!(display_path(Path::new(r"C:\Temp")), r"C:\Temp");
+    }
+
+    // ── Age parsing / validation (added with --min-age / --max-age) ──────────
+
+    #[test]
+    fn parse_age_days_accepts_plain_numbers() {
+        assert_eq!(parse_age_days("0").unwrap(), 0);
+        assert_eq!(parse_age_days("7").unwrap(), 7);
+        assert_eq!(parse_age_days(" 30 ").unwrap(), 30);
+    }
+
+    #[test]
+    fn parse_age_days_rejects_empty_negative_and_fractional() {
+        assert!(parse_age_days("").is_err(), "empty age must be rejected");
+        assert!(parse_age_days("   ").is_err(), "whitespace-only age must be rejected");
+        assert!(parse_age_days("-5").is_err(), "negative age must be rejected");
+        assert!(parse_age_days("1.5").is_err(), "fractional days must be rejected");
+        assert!(parse_age_days("abc").is_err(), "non-numeric age must be rejected");
+    }
+
+    #[test]
+    fn validate_age_window_rejects_inverted_bounds() {
+        assert!(validate_age_window(Some(10), Some(5)).is_err());
+        assert!(validate_age_window(Some(5), Some(10)).is_ok());
+        assert!(validate_age_window(None, Some(10)).is_ok());
+        assert!(validate_age_window(Some(5), None).is_ok());
+        assert!(validate_age_window(None, None).is_ok());
     }
 }

@@ -732,6 +732,7 @@ pub enum UsnCommand {
 mod tests {
     use super::*;
     use clap::CommandFactory;
+    use crate::cli::system::SystemCommand;
 
     #[test]
     fn cli_definition_is_valid() {
@@ -780,5 +781,98 @@ mod tests {
         assert!(Cli::try_parse_from(["sa", "--format", "bogus", "history"]).is_err());
         assert!(Cli::try_parse_from(["sa", "--format", "bogus", "scan"]).is_err());
         assert!(Cli::try_parse_from(["sa", "--format", "markdown", "scan"]).is_ok());
+    }
+
+    // ── Age filters (scan + search) ──────────────────────────────────────────
+
+    #[test]
+    fn min_and_max_age_parse_on_scan() {
+        let cli = Cli::try_parse_from(["sa", "scan", "-p", ".", "--min-age", "7", "--max-age", "30"])
+            .unwrap();
+        match cli.command {
+            Commands::Scan { min_age, max_age, .. } => {
+                assert_eq!(min_age, Some(7));
+                assert_eq!(max_age, Some(30));
+            }
+            _ => panic!("expected scan subcommand"),
+        }
+    }
+
+    #[test]
+    fn min_and_max_age_parse_on_search() {
+        let cli = Cli::try_parse_from([
+            "sa", "search", "-p", ".", "--extension", "log", "--min-age", "7", "--max-age", "30",
+        ])
+        .unwrap();
+        match cli.command {
+            Commands::Search(args) => {
+                assert_eq!(args.min_age, Some(7));
+                assert_eq!(args.max_age, Some(30));
+                assert_eq!(args.extension.as_deref(), Some("log"));
+            }
+            _ => panic!("expected search subcommand"),
+        }
+    }
+
+    // ── System command ───────────────────────────────────────────────────────
+
+    #[test]
+    fn system_list_parses_without_apply() {
+        let cli = Cli::try_parse_from(["sa", "system", "list"]).unwrap();
+        match cli.command {
+            Commands::System(args) => match args.command {
+                SystemCommand::List => {}
+                _ => panic!("expected system list"),
+            },
+            _ => panic!("expected system subcommand"),
+        }
+    }
+
+    #[test]
+    fn system_hibernate_rejects_apply_without_yes() {
+        // `--apply` and `--yes` are fields on `SystemArgs` (before the subcommand),
+        // not on `SystemCommand`. clap parses them fine; the gate is enforced at
+        // runtime in system::require_apply.
+        let cli = Cli::try_parse_from(["sa", "system", "--apply", "hibernate"]).unwrap();
+        match cli.command {
+            Commands::System(args) => match args.command {
+                SystemCommand::Hibernate => {
+                    assert!(args.apply);
+                    assert!(!args.yes);
+                }
+                _ => panic!("expected system hibernate"),
+            },
+            _ => panic!("expected system subcommand"),
+        }
+    }
+
+    #[test]
+    fn system_hibernate_parse_all_flags() {
+        let cli =
+            Cli::try_parse_from(["sa", "system", "--apply", "--yes", "hibernate"]).unwrap();
+        match cli.command {
+            Commands::System(args) => match args.command {
+                SystemCommand::Hibernate => {
+                    assert!(args.apply);
+                    assert!(args.yes);
+                }
+                _ => panic!("expected system hibernate"),
+            },
+            _ => panic!("expected system subcommand"),
+        }
+    }
+
+    // ── Diff command ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn diff_requires_id1_and_id2() {
+        let cli = Cli::try_parse_from(["sa", "diff", "--id1", "3", "--id2", "7"]).unwrap();
+        match cli.command {
+            Commands::Diff(args) => {
+                assert_eq!(args.id1, 3);
+                assert_eq!(args.id2, 7);
+            }
+            _ => panic!("expected diff subcommand"),
+        }
     }
 }

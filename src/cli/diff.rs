@@ -323,3 +323,192 @@ fn format_size_delta(delta: i64) -> String {
         format!("-{}", human)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use space_analyzer_pro_desktop::gui_common::{DirEntry, LargestFileEntry};
+    use std::collections::HashMap;
+
+    // ── format_size_delta ───────────────────────────────────────────────────
+
+    #[test]
+    fn format_size_delta_positive() {
+        let s = format_size_delta(1024);
+        assert!(s.starts_with('+'), "positive delta must start with '+', got '{s}'");
+        assert!(s.contains("KB"), "expected KB human bytes, got '{s}'");
+    }
+
+    #[test]
+    fn format_size_delta_negative() {
+        let s = format_size_delta(-1024);
+        assert!(s.starts_with('-'), "negative delta must start with '-', got '{s}'");
+        assert!(s.contains("KB"), "expected KB human bytes, got '{s}'");
+    }
+
+    #[test]
+    fn format_size_delta_zero() {
+        let s = format_size_delta(0);
+        assert!(s.starts_with('+'), "zero delta must start with '+', got '{s}'");
+    }
+
+    // ── diff_hash_map ───────────────────────────────────────────────────────
+
+    #[test]
+    fn diff_hash_map_reports_only_changed_keys() {
+        let mut before = HashMap::new();
+        before.insert("doc".to_string(), 100);
+        before.insert("img".to_string(), 200);
+
+        let mut after = HashMap::new();
+        after.insert("doc".to_string(), 100); // unchanged
+        after.insert("img".to_string(), 500); // +300
+        after.insert("vid".to_string(), 900); // new
+
+        let deltas = diff_hash_map(&before, &after);
+        let names: Vec<&str> = deltas.iter().map(|d| d.category.as_str()).collect();
+        assert_eq!(names.len(), 2, "only changed keys should appear");
+        assert!(names.contains(&"img"), "img changed from 200→500");
+        assert!(names.contains(&"vid"), "vid is new (0→900)");
+        assert!(!names.contains(&"doc"), "doc unchanged must not appear");
+
+        let img = deltas.iter().find(|d| d.category == "img").unwrap();
+        assert_eq!(img.before_bytes, 200);
+        assert_eq!(img.after_bytes, 500);
+        assert_eq!(img.delta_bytes, 300);
+        assert!(img.delta_human.starts_with('+'));
+
+        let vid = deltas.iter().find(|d| d.category == "vid").unwrap();
+        assert_eq!(vid.before_bytes, 0);
+        assert_eq!(vid.after_bytes, 900);
+        assert_eq!(vid.delta_bytes, 900);
+    }
+
+    #[test]
+    fn diff_hash_map_no_changes_returns_empty() {
+        let mut before = HashMap::new();
+        before.insert("doc".to_string(), 100);
+        let mut after = HashMap::new();
+        after.insert("doc".to_string(), 100);
+        assert!(diff_hash_map(&before, &after).is_empty());
+    }
+
+    #[test]
+    fn diff_hash_map_sorted_by_abs_delta_descending() {
+        let mut before = HashMap::new();
+        before.insert("small".to_string(), 10);
+        before.insert("big".to_string(), 100);
+        before.insert("mid".to_string(), 50);
+
+        let mut after = HashMap::new();
+        after.insert("small".to_string(), 11); // delta +1
+        after.insert("big".to_string(), 10);   // delta -90
+        after.insert("mid".to_string(), 40);   // delta -10
+
+        let deltas = diff_hash_map(&before, &after);
+        assert_eq!(deltas.len(), 3);
+        // Order by abs delta desc: big(90) > mid(10) > small(1)
+        assert_eq!(deltas[0].category, "big");
+        assert_eq!(deltas[1].category, "mid");
+        assert_eq!(deltas[2].category, "small");
+    }
+
+    // ── diff_dir_entries ────────────────────────────────────────────────────
+
+    #[test]
+    fn diff_dir_entries_reports_changed_dirs() {
+        let before = vec![DirEntry {
+            path: "C:/a".to_string(),
+            name: "a".to_string(),
+            total_size: 100,
+            file_count: 2,
+            dir_count: 0,
+        }];
+        let after = vec![DirEntry {
+            path: "C:/a".to_string(),
+            name: "a".to_string(),
+            total_size: 500,
+            file_count: 5,
+            dir_count: 0,
+        }];
+
+        let deltas = diff_dir_entries(&before, &after);
+        assert_eq!(deltas.len(), 1);
+        assert_eq!(deltas[0].path, "C:/a");
+        assert_eq!(deltas[0].before_bytes, 100);
+        assert_eq!(deltas[0].after_bytes, 500);
+        assert_eq!(deltas[0].delta_bytes, 400);
+    }
+
+    #[test]
+    fn diff_dir_entries_new_and_removed_dirs() {
+        let before = vec![DirEntry {
+            path: "C:/old".to_string(),
+            name: "old".to_string(),
+            total_size: 100,
+            file_count: 1,
+            dir_count: 0,
+        }];
+        let after = vec![DirEntry {
+            path: "C:/new".to_string(),
+            name: "new".to_string(),
+            total_size: 100,
+            file_count: 1,
+            dir_count: 0,
+        }];
+
+        let deltas = diff_dir_entries(&before, &after);
+        // old removed (100→0), new added (0→100)
+        assert_eq!(deltas.len(), 2);
+        let paths: Vec<&str> = deltas.iter().map(|d| d.path.as_str()).collect();
+        assert!(paths.contains(&"C:/old"));
+        assert!(paths.contains(&"C:/new"));
+    }
+
+    #[test]
+    fn diff_dir_entries_unchanged_returns_empty() {
+        let before = vec![DirEntry {
+            path: "C:/a".to_string(),
+            name: "a".to_string(),
+            total_size: 100,
+            file_count: 1,
+            dir_count: 0,
+        }];
+        let after = before.clone();
+        assert!(diff_dir_entries(&before, &after).is_empty());
+    }
+
+    // ── diff_largest_files ──────────────────────────────────────────────────
+
+    #[test]
+    fn diff_largest_files_reports_changed_files() {
+        let before = vec![LargestFileEntry {
+            path: "C:/big.bin".to_string(),
+            size: 1000,
+            size_human: "1000 B".to_string(),
+        }];
+        let after = vec![LargestFileEntry {
+            path: "C:/big.bin".to_string(),
+            size: 2000,
+            size_human: "2000 B".to_string(),
+        }];
+
+        let deltas = diff_largest_files(&before, &after);
+        assert_eq!(deltas.len(), 1);
+        assert_eq!(deltas[0].path, "C:/big.bin");
+        assert_eq!(deltas[0].before_bytes, 1000);
+        assert_eq!(deltas[0].after_bytes, 2000);
+        assert_eq!(deltas[0].delta_bytes, 1000);
+    }
+
+    #[test]
+    fn diff_largest_files_unchanged_returns_empty() {
+        let before = vec![LargestFileEntry {
+            path: "C:/big.bin".to_string(),
+            size: 1000,
+            size_human: "1000 B".to_string(),
+        }];
+        let after = before.clone();
+        assert!(diff_largest_files(&before, &after).is_empty());
+    }
+}

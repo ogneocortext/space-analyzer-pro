@@ -206,3 +206,169 @@ fn cli_scan_special_char_path_does_not_inject_arguments() {
     );
     info!("PASS");
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Age filter flags end-to-end
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn cli_scan_min_age_filters_old_files() {
+    info!("Verifying --min-age excludes recently-modified files");
+    let tmp = TempDir::new().unwrap();
+    let old_file = tmp.path().join("old.txt");
+    std::fs::write(&old_file, b"old").unwrap();
+    // Open with write access so SetFileTime (set_modified) is permitted on Windows.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&old_file)
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(5 * 86_400))
+        .expect("set old mtime");
+    std::fs::write(tmp.path().join("new.txt"), b"new").unwrap();
+
+    let out = cli()
+        .arg("scan")
+        .arg("-p")
+        .arg(tmp.path().to_string_lossy().into_owned())
+        .arg("--format")
+        .arg("json")
+        .arg("--min-age")
+        .arg("3")
+        .output()
+        .expect("scan with --min-age must execute");
+
+    assert!(out.status.success(), "scan with --min-age must succeed");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("old.txt"),
+        "old.txt (5 days old) should appear with --min-age 3"
+    );
+    assert!(
+        !stdout.contains("new.txt"),
+        "new.txt should be excluded by --min-age 3"
+    );
+    info!("PASS");
+}
+
+#[test]
+fn cli_search_extension_filters_files() {
+    info!("Verifying --extension filters search results");
+    let tmp = TempDir::new().unwrap();
+    std::fs::write(tmp.path().join("a.log"), b"log").unwrap();
+    std::fs::write(tmp.path().join("b.txt"), b"txt").unwrap();
+
+    let out = cli()
+        .arg("search")
+        .arg("-p")
+        .arg(tmp.path().to_string_lossy().into_owned())
+        .arg("--extension")
+        .arg("log")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("search with --extension must execute");
+
+    assert!(out.status.success(), "search must succeed");
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("a.log"),
+        "a.log should match --extension log"
+    );
+    assert!(
+        !stdout.contains("b.txt"),
+        "b.txt should not match --extension log"
+    );
+    info!("PASS");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. System cleanup shortcuts
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn cli_system_list_emits_json_with_shortcuts() {
+    info!("Verifying `system list --format json` emits a shortcuts array");
+    let out = cli()
+        .arg("system")
+        .arg("list")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("system list must execute");
+
+    assert!(
+        out.status.success(),
+        "system list must succeed. stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("\"shortcuts\""),
+        "JSON output must contain a 'shortcuts' array"
+    );
+    assert!(
+        stdout.contains("\"count\": 5"),
+        "there are exactly five shortcuts"
+    );
+    info!("PASS");
+}
+
+#[test]
+fn cli_system_hibernate_preview_succeeds_without_apply() {
+    info!("Verifying `system hibernate` without --apply succeeds in preview mode");
+    let out = cli()
+        .arg("system")
+        .arg("hibernate")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("system hibernate preview must execute");
+
+    assert!(
+        out.status.success(),
+        "system hibernate preview must succeed. stderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        stdout.contains("\"action\": \"hibernate\""),
+        "preview output must name the hibernate action"
+    );
+    assert!(
+        stdout.contains("\"apply_required\": true"),
+        "preview must indicate apply is required"
+    );
+    info!("PASS");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Diff with missing scan records fails with a clear message
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn cli_diff_missing_record_fails_with_clear_message() {
+    info!("Verifying `diff` with nonexistent scan ids fails clearly");
+    let out = cli()
+        .arg("diff")
+        .arg("--id1")
+        .arg("1")
+        .arg("--id2")
+        .arg("2")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .expect("diff must execute");
+
+    assert!(
+        !out.status.success(),
+        "diff with missing records must fail"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let combined = format!("{stderr}{stdout}");
+    assert!(
+        combined.contains("No scan found") || combined.contains("Database") || combined.contains("id"),
+        "error must name the missing scan id or DB, got: {combined}"
+    );
+    info!("PASS");
+}
