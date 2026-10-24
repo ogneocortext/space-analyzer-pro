@@ -12,7 +12,7 @@
 
 | Subsystem | Language / Stack | Root(s) | Role |
 |-----------|------------------|---------|------|
-| **Rust core** | Rust (Cargo workspace) | `src/`, `scan-engine/`, `gpu-compute/`, `native/` | Disk scanning, CLI (`space-analyzer-cli`), SQLite persistence, Ollama client, system monitor, semantic/embeddings. |
+| **Rust core** | Rust (Cargo workspace) | `src/`, `scan-engine/`, `native/` | Disk scanning, CLI (`space-analyzer-cli`), SQLite persistence, Ollama client, system monitor, semantic/embeddings. |
 | **WinUI 3 GUI** | C# / .NET 10 + Windows App SDK | `gui-winui/` | Active desktop app. Calls the Rust CLI as a subprocess and renders results. |
 | **Macro Dashboard server** | Python (stdlib `http.server`) | `scripts/utility/live_progress_server.py` + `ux_server_*.py` | Live progress / UX-analysis / agent-trace web dashboard. Serves `live_progress.html`, `screenshot_gallery.html`, reports. |
 | **Vision / UX pipeline** | Python + Ollama vision | `scripts/utility/analyze_ux_screenshots.py`, `ux-pipeline/src/ux_pipeline/` | Captures screenshots and classifies UX issues via local vision models. |

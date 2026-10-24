@@ -28,7 +28,6 @@ graph TB
 
     subgraph Shared["Shared Crates"]
         SS["scan-engine/<br/>rayon-parallel walks"]
-        GPU["gpu-compute/<br/>Optional CUDA kernels"]
     end
 
     GUI --> Gui

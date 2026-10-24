@@ -118,12 +118,13 @@ WinUI-3-frontend architecture.
 
 ## 7. GPU Acceleration Status
 
-**Decision:** GPU compute crate exists (`gpu-compute/`) but `process_gpu` is a stub that
-calls `process_cpu`. The Settings → GPU toggle is wired end-to-end and passes `--no-gpu`
-to the CLI when disabled, but actual CUDA acceleration is not implemented.
+**Decision:** GPU compute crate (`gpu-compute/`) was removed in v4.3.0. GPU
+acceleration was never implemented — post-processing always fell back to CPU with
+rayon. The crate added build complexity and a CUDA dependency path for zero
+runtime benefit.
 
-**Rule:** Do not claim "GPU acceleration" in README feature lists without qualification.
-The toggle is a forward-compatible placeholder. Implementing actual CUDA scanning is
+**Rule:** Do not claim "GPU acceleration" in README feature lists.
+All scanning and post-processing is CPU-based (rayon-parallel).
 tracked as a future enhancement.
 
 ---

@@ -72,11 +72,10 @@ space-analyzer-pro/
 │       ├── Services/
 │       └── Models/
 ├── native/                     # Rust native modules
-│   ├── scanner/                # File system scanner
+│   ├── win-usn/                # Windows NTFS scanner (USN Journal)
 │   ├── file_deduplicator/      # Duplicate file finder
 │   └── node_modules_cleaner/   # Node.js cleanup tool
 ├── scan-engine/             # Shared scanning logic crate
-├── gpu-compute/                # GPU-accelerated compute crate
 ├── tests/unit/                 # Rust unit tests
 ├── docs/                       # Documentation
 └── scripts/                    # Development scripts

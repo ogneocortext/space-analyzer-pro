@@ -85,7 +85,7 @@ dotnet run --project gui-winui/SpaceAnalyzer
 > At runtime you can also point the app at prebuilt binaries via the
 > `SPACE_ANALYZER_SCANNER` / `SPACE_ANALYZER_CLEANER` environment variables.
 
-**WinUI 3 state (v4.2.0):**
+**WinUI 3 state (v4.3.0):**
 - **Stable build** against Windows App SDK 2.4.0 / .NET 10
 - **All 13 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, Installed Apps, System, Cleanup, USN Journal, Settings, About
 - **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
@@ -137,6 +137,13 @@ cargo run --bin space-analyzer-cli -- dedup --path .
 # Inventory installed apps across drives / package managers
 cargo run --bin space-analyzer-cli -- app-inventory --format json
 
+# Run cleanup system shortcuts (list, hibernate, winsxs, vhd, shadow, recycle)
+cargo run --bin space-analyzer-cli -- system list --format json
+cargo run --bin space-analyzer-cli -- system hibernate --apply --yes
+
+# Compare two saved scans by ID
+cargo run --bin space-analyzer-cli -- diff --id1 3 --id2 7 --format json
+
 # Lexical file search (extension / keyword / keyword + size + hidden)
 cargo run --bin space-analyzer-cli -- search --path . --extension rs --limit 20
 
@@ -159,6 +166,9 @@ cargo run --bin space-analyzer-cli -- usn --drive C
 --format {text,json,csv,jsonl,md}  Output format (default: text)
 --top N                            Number of top items (default: 20)
 --no-animation                     Suppress animations
+--min-age N                        Minimum file age in days (scan/search)
+--max-age N                        Maximum file age in days (scan/search)
+--dir-cache                        Cache directory totals for faster rescans
 ```
 
 ---
@@ -249,7 +259,6 @@ The core Rust library (`src/`) provides the database, Ollama integration, system
 | **GUI (WinUI 3)** | Windows App SDK 2.4.0 (C#/.NET 10) | Fluent Design, Mica backdrop, 13 pages |
 | **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
 | **File Scanner** | `scan-engine` (rayon-parallel) | CPU mode default |
-| **GPU Acceleration** | `gpu-compute` crate (optional) | Auto-detects NVIDIA, falls back to CPU |
 | **AI Backend** | Ollama (HTTP, local-only) | Off by default; opt-in via Settings |
 | **Workflow Engine** | `src/workflows/` | Native Rust, no external scheduler |
 | **System Monitor** | `sysinfo` crate | Cross-platform base + Windows-specific NTFS APIs |
@@ -330,8 +339,6 @@ native/                    # Standalone Rust binaries
   node_modules_cleaner/    # Node.js dev-dependency cleanup tool
 
 scan-engine/            # Shared scanning logic (used by GUI + CLI + dedup)
-gpu-compute/               # Optional CUDA kernels (parallel hashing, dedup)
-
 assets/                    # Visual assets
   banner/                  # Social preview (1280×640 PNG + SVG)
   icon/                    # App icon (multi-resolution .ico + 6 PNG sizes)
@@ -374,13 +381,17 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
-The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently** but released in lockstep — both are currently **`4.2.0`**. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
+The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently** but released in lockstep — both are currently **`4.3.0`**. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
 
-**v4.2.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
+**v4.3.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 - Reclaimability lens (Safe / Caution / Keep tiers) + persistent reclaim columns; `potential_cleanup_bytes` now returns Safe + Caution.
 - Headless `history` table renderer (`--format text`) with ANSI tier colors, duplicate badges, and a pagination footer.
 - WinUI 3 reclaim UI, "Other" bucket decomposition, scan-crash fix, and hardened logging.
 - Agentic Assistant: `search` streaming progress, `semantic_search` tool, duplicate tool-call guard, token streaming.
+- GPU compute crate removed — all post-processing runs on CPU with rayon.
+- Directory size caching (`--dir-cache`) for faster incremental rescans.
+- Age filtering (`--min-age`/`--max-age`) on scan and search.
+- `system` cleanup shortcuts and `diff` subcommands added to CLI.
 
 **v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 
