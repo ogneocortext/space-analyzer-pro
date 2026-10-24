@@ -1,6 +1,57 @@
 # [Unreleased]
 
+## CLI test coverage & file organization
+
+### Added
+- **Unit tests for age filtering** (`--min-age`/`--max-age`): `helpers.rs` tests for
+  `parse_age_days`/`validate_age_window` (plain values, negative, fractional, empty,
+  inverted windows); `shared_scanner_test.rs` tests proving scans respect
+  `min_age_days`, `max_age_days`, and that an inverted window matches nothing.
+- **Unit tests for `diff` subcommand**: `diff.rs` tests for `format_size_delta`,
+  `diff_hash_map`, `diff_dir_entries`, `diff_largest_files` (changed-only, empty
+  when unchanged, sorted by abs delta).
+- **Unit tests for `system` subcommand**: `system.rs` tests for `require_apply`
+  destructive-action gate (rejects no-apply, apply-without-yes, yes-without-apply),
+  `available_shortcuts` shape (5 actions + names/descriptions), `emit` JSON path.
+- **Unit tests for CLI arg parsing**: `args.rs` tests for `--min-age`/`--max-age` on
+  scan+search, `--apply`/`--yes` on system (live on `SystemArgs`, not `SystemCommand`),
+  `diff --id1/--id2`.
+- **Integration tests in `cli_test.rs`**: `scan --min-age` excludes recently-modified
+  files; `search --extension` filters results; `system list --format json` emits a
+  shortcuts array with `count: 5`; `system hibernate` preview succeeds without
+  `--apply`; `diff` with missing scan ids fails clearly.
+
+### Fixed
+- **`parse_age_days` signature** changed from `Result<Option<u64>>` to `Result<u64>`:
+  clap could not downcast `Option<u64>` from a value parser returning `Option<u64>`;
+  clap wraps `Option` automatically for `T`-returning parsers.
+- **`set_modified` uses `OpenOptions::write(true)`** on Windows so `SetFileTime`
+  (required for age-filter tests on temp files) is permitted.
+
+### Verified
+- `cargo build --workspace` ✅ exit 0
+- `cargo clippy --workspace --all-targets` ✅ exit 0; zero warnings
+- `cargo test --workspace` (excl. `gpu-compute`/`node_modules_cleaner`) ✅ all tests pass
+
+## File organization
+
+### Changed
+- **Stray root screenshots/media relocated**: all PNG screenshots (`art-direction`,
+  `docs-page`, `health-final`, `image-generation`, `media-library`,
+  `music-video-*`, `mv-final`, `queue-page`, `settings-page`, `vertical-display`,
+  `visualizer-page`) and media files (`test-track.mp3`, `test-upload.wav`) moved from
+  the repo root into `docs/screenshots/ux-audit-2026-10-24/{page,media}/` per AGENTS.md
+  convention.
+- **Native Media AI Studio UI screenshots moved out of this repo**: all 14 screenshots
+  that depict NMAI Studio (Art Direction, Docs, Diagnostics/Health, Job Queue,
+  Settings, Music Video Studio, Visualizer, Image Generation, Media Library) plus both
+  media files were relocated to
+  `D:\Backup of Important Data for Windows 11 Upgrade\Native Media AI Studio\docs\screenshots\ux-audit-2026-10-24/`.
+  Vision review confirmed they all show NMAI Studio UI, not Space Analyzer.
+
 ## Scan progress streaming and Windows native build environment
+
+...
 
 ### Changed
 - **Scan progress is reported during directory enumeration**, before the scanner
