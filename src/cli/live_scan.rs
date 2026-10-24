@@ -9,11 +9,20 @@
 //! It only paints when stderr is an actual terminal — when stderr is redirected
 //! to a file or the caller asked for machine output (`--stream` / `--progress-json`
 //! / `--no-animation`) the view stays silent so logs and piped data are clean.
+//!
+//! Presentation follows CLI UX best practices:
+//!   - X of Y pattern for determinate progress (files scanned / size)
+//!   - Spinner + status line for indeterminate phases (enumerating, finalizing)
+//!   - ETA estimation when rate can be computed
+//!   - Clean ANSI color codes via the `colored` crate (no raw escapes)
+//!   - `\\?\` verbatim prefix stripped so paths stay readable
+//!   - stdout stays pure data; everything human-facing goes to stderr
 
 use std::io::Write;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use colored::Colorize;
 use scan_engine::ScanProgress;
 
 pub struct LiveProgress {
@@ -50,54 +59,98 @@ impl LiveProgress {
         drop(last);
 
         let elapsed = self.started.elapsed();
-        let rate_str = if elapsed.as_secs_f64() >= 1.0 {
-            format!(
-                "{}/s",
-                scan_engine::format_bytes((p.total_size as f64 / elapsed.as_secs_f64()) as u64)
-            )
-        } else {
-            "—".to_string()
-        };
+        let elapsed_secs = elapsed.as_secs_f64();
 
         let mut frame = String::new();
 
-        frame.push_str(&format!(
-            "\x1b[1mScanning\x1b[0m {}  \x1b[36m{}\x1b[0m files · \x1b[36m{}\x1b[0m · \x1b[33m{}\x1b[0m · {}\n",
-            truncate(&p.current_file, 58),
-            p.files_scanned,
-            scan_engine::format_bytes(p.total_size),
-            rate_str,
-            fmt_dur(elapsed),
-        ));
-
-        let mut cats: Vec<(&String, &u64)> = p.category_sizes.iter().collect();
-        cats.sort_by_key(|(_, v)| std::cmp::Reverse(**v));
-        if !cats.is_empty() {
-            frame.push_str(&format!(
-                "\x1b[2m  Top categories ({}):\x1b[0m\n",
-                cats.len()
-            ));
-            for (k, v) in cats.iter().take(6) {
+        match p.phase.as_str() {
+            "enumerating" => {
+                // Indeterminate phase — we don't know the total yet.
+                // Show a spinner-style status line with what's been found so far.
+                let rate = if elapsed_secs > 0.0 {
+                    format!("{}/s", p.entries_discovered as f64 / elapsed_secs)
+                } else {
+                    "—".to_string()
+                };
                 frame.push_str(&format!(
-                    "    \x1b[32m{:>11}\x1b[0m {}\n",
-                    scan_engine::format_bytes(**v),
-                    k
+                    "{} {}\n",
+                    "🔍".cyan().bold(),
+                    format_discovery(p.entries_discovered, rate.as_str(), elapsed)
                 ));
             }
-        }
-
-        let mut files: Vec<_> = p.live_files.iter().collect();
-        files.sort_by_key(|f| std::cmp::Reverse(f.size));
-        if !files.is_empty() {
-            frame.push_str(&format!(
-                "\x1b[2m  Largest so far ({}):\x1b[0m\n",
-                files.len()
-            ));
-            for f in files.iter().take(5) {
+            "scanning" => {
+                // Determinate phase — X of Y pattern.
+                // percentage is meaningful here because the scanner updates it
+                // as files_scanned / total_estimate.
+                let bar = progress_bar(p.percentage, 24);
+                let eta = if p.percentage > 0.0 && elapsed_secs > 0.0 {
+                    let remaining = (100.0 - p.percentage as f64) / p.percentage as f64 * elapsed_secs;
+                    fmt_dur(Duration::from_secs_f64(remaining))
+                } else {
+                    "—".to_string()
+                };
+                let rate = if elapsed_secs > 0.0 {
+                    format!(
+                        "{}/s",
+                        scan_engine::format_bytes((p.total_size as f64 / elapsed_secs) as u64)
+                    )
+                } else {
+                    "—".to_string()
+                };
                 frame.push_str(&format!(
-                    "    \x1b[35m{:>11}\x1b[0m {}\n",
-                    scan_engine::format_bytes(f.size),
-                    truncate(&f.path, 64),
+                    "{} [{}] {:>5.1}%  {} files · {} · {} · ETA {}\n",
+                    "📂".green().bold(),
+                    bar,
+                    p.percentage,
+                    p.files_scanned.to_string().bold(),
+                    scan_engine::format_bytes(p.total_size).bold(),
+                    rate.bold(),
+                    eta.bold()
+                ));
+                if !p.current_file.is_empty() {
+                    frame.push_str(&format!(
+                        "  {} {}\n",
+                        "▸".dimmed(),
+                        truncate(&strip_verbatim(&p.current_file), 60).dimmed()
+                    ));
+                }
+            }
+            "processing" => {
+                // Transition phase — wrapping up.
+                frame.push_str(&format!(
+                    "{} {} ({:.0}%) · {} files · {}\n",
+                    "⚙️".yellow().bold(),
+                    p.current_file.bold(),
+                    p.percentage,
+                    p.files_scanned.to_string().bold(),
+                    fmt_dur(elapsed).dimmed()
+                ));
+            }
+            "finalizing" => {
+                // Final compute phase — all files found, just aggregating.
+                frame.push_str(&format!(
+                    "{} {} · {} files · {} — almost done\n",
+                    "✨".magenta().bold(),
+                    p.current_file.bold(),
+                    p.files_scanned.to_string().bold(),
+                    scan_engine::format_bytes(p.total_size).bold(),
+                ));
+            }
+            "complete" => {
+                frame.push_str(&format!(
+                    "{} {} files · {} · {} total\n",
+                    "✓".green().bold(),
+                    p.files_scanned.to_string().bold(),
+                    scan_engine::format_bytes(p.total_size).bold(),
+                    fmt_dur(elapsed).dimmed()
+                ));
+            }
+            _ => {
+                frame.push_str(&format!(
+                    "{} {} · {}\n",
+                    "•".dimmed(),
+                    p.current_file.bold(),
+                    fmt_dur(elapsed).dimmed()
                 ));
             }
         }
@@ -144,6 +197,18 @@ fn fmt_dur(d: Duration) -> String {
     }
 }
 
+/// Render a text progress bar with filled/empty segments.
+fn progress_bar(percent: f32, width: usize) -> String {
+    let filled = ((percent.clamp(0.0, 100.0) / 100.0) * width as f32).round() as usize;
+    let filled = filled.min(width);
+    let empty = width.saturating_sub(filled);
+    format!(
+        "{}{}",
+        "█".repeat(filled).green(),
+        "░".repeat(empty).dimmed()
+    )
+}
+
 fn truncate(s: &str, max: usize) -> String {
     let n = s.chars().count();
     if n <= max {
@@ -151,4 +216,21 @@ fn truncate(s: &str, max: usize) -> String {
     }
     let skip = n - max;
     format!("…{}", s.chars().skip(skip).collect::<String>())
+}
+
+/// Format the discovery-phase status line (no nested format! to avoid clippy
+/// format_in_format_args warnings).
+fn format_discovery(found: u64, rate: &str, elapsed: Duration) -> String {
+    format!(
+        "Discovering files · {} found · {} · {}",
+        found.to_string().bold(),
+        rate.bold(),
+        fmt_dur(elapsed).dimmed()
+    )
+}
+
+/// Strip the Windows extended-length (`\\?\`) verbatim prefix so paths shown
+/// in the live progress view stay readable.
+fn strip_verbatim(path: &str) -> String {
+    path.strip_prefix(r"\\?\").unwrap_or(path).to_string()
 }

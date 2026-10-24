@@ -49,10 +49,10 @@ pub fn print_animated_banner() {
     for ch in title.chars() {
         eprint!("{}", ch.to_string().white().bold());
         let _ = io::stderr().flush();
-        std::thread::sleep(Duration::from_millis(12));
+        std::thread::sleep(Duration::from_millis(2));
     }
     eprintln!();
-    std::thread::sleep(Duration::from_millis(80));
+    std::thread::sleep(Duration::from_millis(30));
 
     // Animated underline
     let line_len = title.chars().count() + prefix.len();
@@ -64,7 +64,7 @@ pub fn print_animated_banner() {
         let segment: String = "─".repeat(end - i);
         eprint!("{}", segment.cyan());
         let _ = io::stderr().flush();
-        std::thread::sleep(Duration::from_millis(15));
+        std::thread::sleep(Duration::from_millis(3));
     }
     eprintln!();
     eprintln!();
@@ -139,14 +139,14 @@ pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool
         let segment: String = "═".repeat(end - i);
         hprint!("{}", segment.dimmed());
         sink::flush_human();
-        std::thread::sleep(Duration::from_millis(15));
+        std::thread::sleep(Duration::from_millis(3));
     }
 
     // Print title
     for ch in title_part.chars() {
         hprint!("{}", ch.to_string().white().bold());
         sink::flush_human();
-        std::thread::sleep(Duration::from_millis(10));
+        std::thread::sleep(Duration::from_millis(2));
     }
 
     // Print right line in chunks
@@ -155,7 +155,7 @@ pub fn print_section_header_animated(icon: &str, title: &str, no_animation: bool
         let segment: String = "═".repeat(end - i);
         hprint!("{}", segment.dimmed());
         sink::flush_human();
-        std::thread::sleep(Duration::from_millis(15));
+        std::thread::sleep(Duration::from_millis(3));
     }
     hprintln!();
 }
@@ -226,7 +226,7 @@ pub fn print_animated_bar_mode(
     sink::flush_human();
 
     // Fill the bar character by character — append only, no \r
-    let step_ms = if target_filled > 25 { 6 } else { 12 };
+    let step_ms = if target_filled > 25 { 1 } else { 2 };
     let mut current: usize = 0;
     while current < target_filled {
         let advance = ((target_filled - current) / 3)
