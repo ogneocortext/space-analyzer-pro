@@ -100,8 +100,8 @@ pub struct Cli {
 
     /// Output format. `scan` renders every format; `history` renders a console
     /// table in `text` (default) and JSON for `json`/`csv`/`jsonl`/`md`.
-    #[arg(short, long, global = true, value_enum, default_value_t = OutputFormat::Text)]
-    pub format: OutputFormat,
+    #[arg(short, long, global = true, value_enum)]
+    pub format: Option<OutputFormat>,
 
     /// Number of top items to show in breakdowns (minimum 1)
     #[arg(long, global = true, default_value = "20", value_parser = parse_at_least_one)]

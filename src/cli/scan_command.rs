@@ -44,9 +44,10 @@ pub struct ScanArgs {
     pub files: bool,
     pub drill: usize,
     pub log: Option<String>,
-    pub output_format: OutputFormat,
     pub top_n: usize,
     pub no_anim: bool,
+    /// Format explicitly requested on the CLI (None = not specified, consult config).
+    pub format: Option<OutputFormat>,
     /// Quiet mode — suppress all non-essential human-facing output.
     pub quiet: bool,
     /// Path to a TOML config file (overrides defaults).
@@ -71,12 +72,9 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         "text" => Some(OutputFormat::Text),
         _ => None,
     });
-    let effective_format = if args.output_format == OutputFormat::Text {
-        // Only override text (the default) if config specifies a format.
-        config_format.unwrap_or(args.output_format)
-    } else {
-        args.output_format
-    };
+    let effective_format = args
+        .format
+        .unwrap_or_else(|| config_format.unwrap_or(OutputFormat::Text));
     let config_top = config.as_ref().and_then(|c| c.top).unwrap_or(args.top_n);
     let config_threads = config
         .as_ref()
@@ -130,7 +128,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     helpers::validate_size_window(min_size, max_size)?;
     helpers::validate_age_window(args.min_age, args.max_age)?;
 
-    if args.output_format == OutputFormat::Text && !config_no_anim && !args.stream && !args.quiet {
+    if effective_format == OutputFormat::Text && !config_no_anim && !args.stream && !args.quiet {
         animation::print_animated_banner();
     }
 
@@ -281,7 +279,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     if args.clean {
         crate::cli::dedup::run_clean_analysis(
             &scan_path_display,
-            args.output_format,
+            effective_format,
             min_size,
             max_size,
             false,

@@ -27,7 +27,7 @@ pub mod system;
 pub mod types;
 pub mod usn;
 
-use args::{Cli, Commands};
+use args::{Cli, Commands, OutputFormat};
 use clap::{CommandFactory, Parser};
 use clap_complete::shells::{Bash, Elvish, Fish, PowerShell, Zsh};
 use space_analyzer_pro_desktop::error::AppResult;
@@ -35,7 +35,7 @@ use std::io;
 
 pub fn main() -> AppResult<()> {
     let cli = Cli::parse();
-    let output_format = cli.format;
+    let output_format = cli.format.unwrap_or(OutputFormat::Text);
     let top_n = cli.top;
     let no_anim = cli.no_animation;
     let quiet = cli.quiet;
@@ -109,9 +109,9 @@ pub fn main() -> AppResult<()> {
                 files,
                 drill,
                 log: log.clone(),
-                output_format,
                 top_n,
                 no_anim,
+                format: cli.format,
                 quiet,
                 config,
             };
