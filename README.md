@@ -13,367 +13,245 @@
 </p>
 
 <p align="center">
-  <strong>Space Analyzer Pro</strong> is a native Windows disk-space analyzer with an optional local AI assistant and optional NVIDIA GPU acceleration. No cloud, no telemetry, no accounts — scan your drives, find bloat and duplicates, and reclaim space with a single ~16&nbsp;MB desktop app.
+  <strong>Space Analyzer Pro</strong> is a native Windows disk-space analyzer with an optional local AI assistant and optional NVIDIA GPU acceleration. No cloud, no telemetry, no accounts — scan your drives, find bloat and duplicates, and reclaim space.
 </p>
 
 <p align="center">
-  <a href="#why-space-analyzer-pro">Why?</a> &nbsp;·&nbsp;
+  <a href="#download--install">Download & Install</a> &nbsp;·&nbsp;
   <a href="#quick-start">Quick Start</a> &nbsp;·&nbsp;
   <a href="#features">Features</a> &nbsp;·&nbsp;
-  <a href="#architecture">Architecture</a> &nbsp;·&nbsp;
+  <a href="#cli-reference">CLI Reference</a> &nbsp;·&nbsp;
   <a href="#screenshots">Screenshots</a> &nbsp;·&nbsp;
-  <a href="#development">Development</a> &nbsp;·&nbsp;
-  <a href="#documentation">Docs</a>
+  <a href="#development">Development</a>
 </p>
-
-<details>
-<summary>For AI agents / automation working in this repo</summary>
-
-> Primary issue tracker is **`docs/issues.json`** (schema v1, local-only / gitignored).
-> Derived quick reference: **`docs/ISSUES.md`** (regenerate with `python docs/generate_status_summary.py --write`; gitignored). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth.
-> Update workflow: find by `id:MAIN-XXX` tag in `tags[]` → fix code → update status in `issues.json` → `python docs/export_issues_to_csv.py`
-
-</details>
 
 ---
 
-## Why Space Analyzer Pro?
+## What it does
 
-Space Analyzer Pro is available in one mode:
+Space Analyzer Pro helps you find where your disk space is going and reclaim it:
 
-- **Desktop** — native Windows binary with direct filesystem access, embedded SQLite, optional GPU acceleration, and optional local LLM (Ollama). No servers, no ports, no telemetry.
+- **Scan** any folder or drive — see exactly what's using space, down to individual files
+- **Categorize** files into 12 groups (Documents, Images, Build Output, Archives, etc.)
+- **Flag reclaimable items** — Safe / Caution / Keep tiers so you know what's safe to delete
+- **Find duplicates** — parallel hashing with optional GPU acceleration, hard-link dedup to reclaim space without re-encoding
+- **AI Assistant** — optional local Ollama integration; ask "what is using the most space?" and get answers
+- **No cloud, no telemetry, no accounts** — everything runs locally on your machine
 
-| What you get | What you don't |
-|---|---|
-| Single ~16 MB desktop binary | No Node.js runtime required for desktop mode |
-| Embedded SQLite database | No PostgreSQL, no Redis, no cloud DB |
-| Optional local Ollama AI | No OpenAI API, no telemetry, no tracking |
-| Optional NVIDIA GPU accel | No vendor lock-in, CPU fallback works fine |
-| Recursive multi-volume scan | No browser limitations, no upload size limits |
-| Hardlink-based dedup | No re-encoding, no data loss |
+---
+
+## Download & Install
+
+### Option 1: Prebuilt binary (recommended — no build needed)
+
+Download the latest release from the [Releases page](https://github.com/ogneocortext/space-analyzer-pro/releases/latest):
+
+| File | What it is |
+|------|------------|
+| `space-analyzer-cli.exe` | Standalone command-line scanner (~7 MB) |
+
+**To run:** download `space-analyzer-cli.exe`, open PowerShell or Command Prompt, and run:
+
+```powershell
+# Scan the current folder
+.\space-analyzer-cli.exe scan .
+
+# Scan a specific drive
+.\space-analyzer-cli.exe scan D:\Projects
+
+# Save results as JSON
+.\space-analyzer-cli.exe scan . --format json --export results.json
+```
+
+### Option 2: WinUI 3 GUI (requires building from source)
+
+The graphical desktop app is built with WinUI 3 (.NET 10 / Windows App SDK 2.4.0) and requires Visual Studio 2022. See the **[Development](#development)** section for build instructions.
+
+> **System requirements:** Windows 10/11 x64. Optional: [Ollama](https://ollama.com) for the AI Assistant and Smart Search; an NVIDIA GPU enables faster duplicate-hashing but is not required (CPU fallback works).
 
 ---
 
 ## Quick Start
 
-The **active and only GUI is WinUI 3** (C# / .NET 10 / Windows App SDK 2.4.0).
+| Goal | Command |
+|------|---------|
+| See what's using space on C: | `.\space-analyzer-cli.exe scan C:\` |
+| Scan your user folder | `.\space-analyzer-cli.exe scan %USERPROFILE%` |
+| JSON output for scripts | `.\space-analyzer-cli.exe scan . --format json` |
+| Find duplicate files | `.\space-analyzer-cli.exe dedup D:\Projects` |
+| List mounted drives | `.\space-analyzer-cli.exe disk-info --format json` |
+| Suppress progress banners (quiet mode) | `.\space-analyzer-cli.exe --quiet scan .` |
+| Generate shell tab-completions | `.\space-analyzer-cli.exe completions powershell > $PROFILE` |
 
-### Get a prebuilt build (optional)
-
-Prebuilt Windows builds are published on the [Releases](https://github.com/ogneocortext/space-analyzer-pro/releases/latest) page when available. **Note:** the newest features land on the `main` branch first, so a tagged release may lag behind — to run the latest code, build from source using the steps below.
-
-> Runs on **Windows 10/11 x64**. Optional: install [Ollama](https://ollama.com) for the AI Assistant and Smart Search features; an NVIDIA GPU enables faster duplicate-hashing but is not required.
-
-### WinUI 3 GUI (C#/.NET) — recommended
-
-> **Note:** The WinUI 3 GUI requires Visual Studio 2022 MSBuild. `dotnet build` fails with WMC9999 on non-English Windows.
-
-```powershell
-# Build using Visual Studio MSBuild
-& "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
-
-# Run
-dotnet run --project gui-winui/SpaceAnalyzer
-```
-
-> **Backend requirement:** The WinUI 3 GUI drives the Rust scanner as a subprocess
-> (`space-analyzer-cli`). The `SpaceAnalyzer.csproj` build copies the two native
-> tools from `<repo>/target/release` into the app output (and warns if they are
-> missing). Build them first with `cargo build --release --bin space-analyzer-cli
-> --bin node_modules_cleaner` at the repo root, or on demand with
-> `dotnet build gui-winui/SpaceAnalyzer/SpaceAnalyzer.csproj /t:BuildRustScanner`.
-> At runtime you can also point the app at prebuilt binaries via the
-> `SPACE_ANALYZER_SCANNER` / `SPACE_ANALYZER_CLEANER` environment variables.
-
-**WinUI 3 state (v4.3.0):**
-- **Stable build** against Windows App SDK 2.4.0 / .NET 10
-- **All 13 pages implemented and fully functional:** Dashboard, Scan, History, Smart Search, Workflows, AI Assistant, Duplicates, Installed Apps, System, Cleanup, USN Journal, Settings, About
-- **Token-based design system** in `App.xaml` — spacing, typography, icon-size, card, button, and progress-bar resource dictionaries
-- **Dashboard stat cards** with live system resource refresh and resource-history canvas charts
-- **MVVM pattern** with `Helpers/`, `ViewModels/`, `Models/`, `Services/` separation
-- **Ollama integration** via `OllamaClient.cs` with `JsonStringEnumConverter` for correct `ChatRole` serialization
-- **Scan page:** scan-depth ComboBox (Quick/Default/Deep/Custom) with custom-depth slider, live filename streaming, Stop scan, path validation, scan errors display, file type distribution chart, largest files with filter, export results
-- **AppLog diagnostics** — file logger at `%LOCALAPPDATA%/SpaceAnalyzer/ui-actions.log` with NAV/PAGE/ACTION/ERROR categories
-
-### Prerequisites
-
-| Requirement | Required? | Notes |
-|---|---|---|
-| **Rust 1.95+** | ✅ Yes | [rustup.rs](https://rustup.rs) |
-| **Windows 10/11 x64** | ✅ Yes | Uses Win32 APIs in `native/win-usn/` |
-| **NVIDIA GPU** | ⚠️ Optional | For GPU-accelerated dedup; CPU fallback works |
-| **Ollama** | ⚠️ Optional | For AI Assistant and Smart Search tabs |
-
-### Command Line Interface
-
-The CLI uses subcommands for structured JSON output (used by the WinUI 3 GUI):
-
-```bash
-# Basic scan
-cargo run --bin space-analyzer-cli -- scan --path . --verbose
-
-# Export results to JSON
-cargo run --bin space-analyzer-cli -- scan --path . --export results.json
-
-# Deep scan with extended metadata
-cargo run --bin space-analyzer-cli -- scan --path . --deep
-
-# Show disk space info — prints a JSON array of every mounted volume
-# (the --path arg is accepted but ignored in JSON output)
-cargo run --bin space-analyzer-cli -- disk-info --format json
-# Example: [{"mount_point":"C:\\","label":"SSD","file_system":"NTFS",
-#   "total_bytes":...,"used_bytes":...,"available_bytes":...,"usage_percent":64.6}]
-
-# Show scan history as an aligned headless table (default), with Safe/Caution/Keep
-# reclaim tiers, duplicate badges (×N), and a pagination footer
-cargo run --bin space-analyzer-cli -- history --limit 10
-
-# Machine-readable history for the GUI / scripts (json, jsonl, csv, md also supported)
-cargo run --bin space-analyzer-cli -- history --limit 10 --format json
-
-# Run duplicate-file analysis
-cargo run --bin space-analyzer-cli -- dedup --path .
-
-# Inventory installed apps across drives / package managers
-cargo run --bin space-analyzer-cli -- app-inventory --format json
-
-# Run cleanup system shortcuts (list, hibernate, winsxs, vhd, shadow, recycle)
-cargo run --bin space-analyzer-cli -- system list --format json
-cargo run --bin space-analyzer-cli -- system hibernate --apply --yes
-
-# Compare two saved scans by ID
-cargo run --bin space-analyzer-cli -- diff --id1 3 --id2 7 --format json
-
-# Lexical file search (extension / keyword / keyword + size + hidden)
-cargo run --bin space-analyzer-cli -- search --path . --extension rs --limit 20
-
-# Semantic (embeddings) search — requires Ollama
-cargo run --bin space-analyzer-cli -- semantic-search --path . --query "tax documents"
-
-# Free-form question about a saved scan (read-only agentic loop)
-cargo run --bin space-analyzer-cli -- ask "what is using the most space?"
-
-# Read/write settings
-cargo run --bin space-analyzer-cli -- settings get
-
-# Inspect the embedded database
-cargo run --bin space-analyzer-cli -- db info
-
-# Enumerate the NTFS USN journal for a volume
-cargo run --bin space-analyzer-cli -- usn --drive C
-
-# Global flags (apply to all subcommands)
---format {text,json,csv,jsonl,md}  Output format (default: text)
---top N                            Number of top items (default: 20)
---no-animation                     Suppress animations
---min-age N                        Minimum file age in days (scan/search)
---max-age N                        Maximum file age in days (scan/search)
---dir-cache                        Cache directory totals for faster rescans
-```
+> **Tip:** Use `--quiet` to suppress animations and progress output — useful in scripts or CI. Use `--format json|csv|jsonl|md` for machine-readable output.
 
 ---
 
 ## Features
 
 ### Core Scanning
-- **Recursive directory scanning** with real-time progress, cancellation, and performance metrics
-- **Multi-volume disk support** (3+ drives) with usage gauges
-- **NTFS USN Journal scanner** for incremental change tracking
-- **Hard-link detection** via MFT parsing
-- **Scan history** with comparison, filtering, and SQLite-backed persistence
-- **Path validation** before scan starts — invalid paths are rejected with a clear message
-- **Scan cancellation** — Stop button kills the scanner process tree immediately
-- **Scan errors** — per-scan error list displayed in the results panel
-- **File type distribution** — top 10 extensions with percentage breakdown
-- **Largest files** with live filter by filename substring
-- **Export results** to JSON file from the scan page
-- **Deep/shallow/custom depth** scan modes
+- Recursive directory scanning with real-time progress and cancellation
+- Multi-volume disk support with usage gauges
+- NTFS USN Journal scanner for incremental change tracking
+- Path validation before scan starts — invalid paths rejected with a clear message
+- Deep/shallow/custom depth scan modes
+- Scan history with comparison, filtering, and SQLite-backed persistence
 
 ### Analysis
-- **File categorization** into 12 human-readable groups (Documents, Images, Videos, Audio, Archives, Code, Development, Config, Logs, Backups, Database, Other) — [`src/category.rs`](src/category.rs)
-- **Bloat detection** via heuristic pattern classifier (large videos, cache files, build artifacts, dev dependencies) — [`src/offline_ai.rs`](src/offline_ai.rs)
-- **Reclaimability lens** — every scanned file is classified into **Safe** (cache, temp, downloads, recycle-bin, build artifacts, logs), **Caution** (archives, backups, installers, old large media), or **Keep** (documents, photos, videos, code, user data); the History views show a per-tier reclaimable breakdown with a reclaimable %, and the "Other" bucket is decomposed into its top extensions
-- **Storage trend prediction** based on historical scan data
-- **AI recommendations** for cleanup, organization, and optimization
-- **Largest files & directories** ranking
+- File categorization into 12 human-readable groups
+- Bloat detection via heuristic pattern classifier
+- **Reclaimability lens** — Safe / Caution / Keep tiers with reclaimable percentages
+- Storage trend prediction based on historical scan data
+- AI recommendations for cleanup and optimization
 
 ### File Management
-- **Duplicate finder** with parallel hashing and **optional GPU acceleration**
-- **Hard-link deduplication** to reclaim space without re-encoding
-- **Destructive-action preview** — `DependencyReport` shows related files (hardlinks, symlinks, siblings, paired extensions) before deletion — [`src/file_relations.rs`](src/file_relations.rs)
-- **Export** to JSON, CSV, HTML, and PDF
+- Duplicate finder with parallel hashing and optional GPU acceleration
+- Hard-link deduplication — reclaim space without re-encoding
+- Destructive-action preview — see related files before deletion
+- Export to JSON, CSV, HTML, and PDF
 
-### AI Integration (Optional)
-- **Ollama-powered AI Assistant** with chat, streaming, and tool-calling
-- **Smart Search** using semantic embeddings for natural-language file queries
-- **15+ tool registry** exposing scan/history/volumes/resources/storage_trend/workflows/file_type_breakdown/predict/patterns/search/largest_files/dependencies/stop_scan/export_results/classify_file/get_bloat_findings/get_recommendations/semantic_search to the LLM
-- **Dynamic tool choice** — the assistant resolves which tools to call based on the user's message content, mirroring the Rust backend's `resolve_tool_choice` logic
-- **Enriched ChatRequest** — `Options`, `Think`, and `KeepAlive` fields supported for fine-grained model control
-- **100% local** — no cloud APIs, no telemetry
-
-### Workflow Automation
-- **5 workflow categories**: Maintenance, Optimization, Organization, Monitoring, Custom
-- **4 trigger types**: Manual, LowDiskSpace, FileSystemChange, OnStartup
-- **7 action types**: Scan, FindDuplicates, PredictStorage, GenerateRecommendations, Export, Notify, AIAnalyze
-- **Pre-configured templates** for common cleanup tasks
-- **Execution history** with status tracking and cancellation
-
-### System Monitoring
-- **CPU, RAM, GPU, and disk** real-time gauges
-- **Per-volume usage** with free/total breakdowns
-- **Storage trend** line chart (when ≥2 scans in history)
-- **Background refresh** without UI blocking
-
----
-
-## Architecture
-
-The GUI is **WinUI 3** (`gui-winui/`, C# + Windows App SDK 2.4.0), the actively developed frontend.
-
-| GUI | Path | Stack | Status |
-|-----|------|-------|--------|
-| **WinUI 3** | `gui-winui/` | C# + Windows App SDK 2.4.0 | Active development |
-
-The core Rust library (`src/`) provides the database, Ollama integration, system monitoring, and CLI. WinUI 3 consumes this library via subprocess calls to the CLI.
-
-### Tabs
-
-| Tab | Purpose |
-|-----|---------|
-| **Dashboard** | Hero stats, file categories, bloat candidates, disk volumes, system resources, storage trend, AI recommendations |
-| **Scan** | Configure paths, run scans, watch progress, view results |
-| **History** | Browse past scans, compare, delete, export |
-| **Smart Search** | Semantic search via local embeddings (requires Ollama) |
-| **Workflows** | Create, edit, schedule, and run automated cleanup/analysis workflows |
-| **AI Assistant** | Chat with local LLM; the LLM can call tools to scan, analyze, and act on your behalf |
-| **Duplicates** | Find and remove duplicate files with parallel hashing |
-| **System** | CPU/RAM/GPU/disk monitor with real-time gauges |
-| **Cleanup** | Analyze and clean node_modules directories to reclaim disk space |
-| **About** | Version, license, and core technologies |
-| **Settings** | Configure Ollama endpoint, default scan paths, theme, GPU toggle |
-
-### Stack
-
-| Component | Implementation | Notes |
-|---|---|---|
-| **GUI (WinUI 3)** | Windows App SDK 2.4.0 (C#/.NET 10) | Fluent Design, Mica backdrop, 13 pages |
-| **Database** | SQLite via `rusqlite` (bundled) | No external DB server |
-| **File Scanner** | `scan-engine` (rayon-parallel) | CPU mode default |
-| **AI Backend** | Ollama (HTTP, local-only) | Off by default; opt-in via Settings |
-| **Workflow Engine** | `src/workflows/` | Native Rust, no external scheduler |
-| **System Monitor** | `sysinfo` crate | Cross-platform base + Windows-specific NTFS APIs |
+### AI Integration (Optional, requires Ollama)
+- Local AI Assistant with chat and tool-calling
+- Smart Search using semantic embeddings for natural-language queries
+- 100% local — no cloud APIs, no telemetry
 
 ---
 
 ## Screenshots
 
-The **WinUI 3** frontend (Fluent Design, Windows App SDK) is the actively developed GUI — the capture below is from the real app.
-
 | WinUI 3 — Dashboard | WinUI 3 — AI Assistant |
 |---|---|
 | <img src="assets/screenshots/winui-dashboard.png" alt="WinUI 3 Dashboard" width="400"> | <img src="assets/screenshots/ai-chat.png" alt="AI Assistant" width="400"> |
 
-_To regenerate screenshots, run `just test-gui`, which uses the Win32 PrintWindow API to capture the actual GUI window._
+---
+
+## CLI Reference
+
+The CLI uses subcommands. Global flags work on every subcommand:
+
+| Flag | Description |
+|------|-------------|
+| `--format text\|json\|csv\|jsonl\|md` | Output format (default: `text`) |
+| `--top N` | Number of top items to show (default: `20`) |
+| `--quiet` | Suppress animations, progress banners, and notices |
+| `--config FILE` | Path to a TOML config file (defaults to `%APPDATA%\space-analyzer\config.toml`) |
+| `--yes` | Assume "yes" for destructive prompts |
+| `--no-animation` | Suppress animations |
+
+**Common subcommands:**
+
+```powershell
+# Scan a folder (text output)
+.\space-analyzer-cli.exe scan D:\Projects
+
+# Scan as JSON
+.\space-analyzer-cli.exe --format json scan D:\Projects
+
+# Scan with age filter (files older than 30 days)
+.\space-analyzer-cli.exe scan D:\ --min-age 30
+
+# Scan quietly (no banners/progress)
+.\space-analyzer-cli.exe --quiet scan D:\Projects
+
+# Find duplicates
+.\space-analyzer-cli.exe dedup D:\Projects
+
+# Preview duplicates without deleting
+.\space-analyzer-cli.exe dedup D:\Projects --apply --yes
+
+# Inventory installed apps
+.\space-analyzer-cli.exe app-inventory --format json
+
+# Cleanup system shortcuts (list only)
+.\space-analyzer-cli.exe system list --format json
+
+# Compare two saved scans
+.\space-analyzer-cli.exe diff --id1 3 --id2 7 --format json
+
+# Lexical file search
+.\space-analyzer-cli.exe search D:\ --extension rs --limit 20
+
+# Semantic search (requires Ollama)
+.\space-analyzer-cli.exe semantic-search D:\ --query "tax documents"
+
+# Ask a question about a scan
+.\space-analyzer-cli.exe ask "what is using the most space?"
+
+# Show shell completions for your shell
+.\space-analyzer-cli.exe completions powershell   # bash, zsh, fish, powershell, elvish
+```
 
 ---
 
-## Development
+## Optional Setup
 
-### Build & Test
+### Ollama (AI Assistant & Smart Search)
 
-```bash
-just build         # Build debug workspace
-just build-release # Build optimized release
-just test          # Run all tests
-just verify        # Format check + clippy + tests
-just run-gui       # Start the GUI
-just run-cli       # Run the CLI scanner
-just clippy        # Run lints only
-just fmt           # Format all code
-just package       # Build release + create distributable zip
-just help          # Show all commands
+Install [Ollama](https://ollama.com), then pull a model:
+
+```powershell
+ollama pull llama3.2
 ```
 
-### Project Structure
+Enable the AI Assistant in the GUI Settings, or use CLI commands like `semantic-search` and `ask`.
 
-```
-  src/                       # Core Rust library (no GUI)
-   main.rs                  # CLI entry point
-   lib.rs                   # Library exports
-    cli/                     # CLI module (subcommands: scan, disk-info, history, dedup, app-inventory, search, semantic-search, ask, settings, db, usn)
-     args.rs                # Clap subcommand definitions
-     mod.rs                 # Subcommand dispatch
-     scan.rs                # Directory scanning logic
-     dedup.rs               # Duplicate analysis logic
-     helpers.rs             # Shared helpers (get_disk_info, parse_size)
-     types.rs               # Shared types (DiskInfo)
-   ollama/                  # Ollama LLM client (chat, embeddings, streaming, tool calls)
-  database/                # SQLite layer (scans, embeddings, settings, workflows)
-  workflows/               # Analysis workflow engine (5 categories, 7 actions, 4 triggers)
-   tool_registry/           # 15+ tools exposed to the LLM
-  category.rs              # File extension → 12-category mapping
-  offline_ai.rs            # Heuristic bloat pattern classifier
-  file_relations.rs        # Dependency report (hardlinks, symlinks, siblings)
-  system_monitor.rs        # CPU/RAM/GPU/disk monitoring
-  embedding_service.rs     # Semantic search via Ollama embeddings
-  disk_monitor.rs          # Background disk space monitor
-  gui_common.rs            # Shared types for GUI implementations
+### NVIDIA GPU (faster duplicate hashing)
 
-gui-winui/                 # WinUI 3 desktop GUI (active development)
-  SpaceAnalyzer.sln        # Visual Studio solution
-  SpaceAnalyzer/
-    SpaceAnalyzer.csproj   # .NET 10 + Windows App SDK 2.4.0
-    App.xaml(.cs)          # Application entry
-    MainWindow.xaml(.cs)   # NavigationView shell
-    Views/                 # XAML pages (Dashboard, Scan, Settings, etc.)
-    ViewModels/            # MVVM view models
-     Services/
-       ScannerService.cs    # Rust CLI interop (subprocess + JSON)
-       ToolExecutor.cs      # AI tool-call execution (scan, dedup, history, disk-info)
-    Models/                # Data models
-    Assets/                # Icons, images
+Duplicate hashing runs on CPU by default. An NVIDIA GPU accelerates it but is not required — CPU fallback works fine.
 
-native/                    # Standalone Rust binaries
-  win-usn/                 # Windows NTFS scanner (USN Journal, MFT, hardlinks)
-  file_deduplicator/       # GPU-accelerated duplicate file finder
-  node_modules_cleaner/    # Node.js dev-dependency cleanup tool
+---
 
-scan-engine/            # Shared scanning logic (used by GUI + CLI + dedup)
-assets/                    # Visual assets
-  banner/                  # Social preview (1280×640 PNG + SVG)
-  icon/                    # App icon (multi-resolution .ico + 6 PNG sizes)
-  diagrams/                # Mermaid source (architecture.md, workflow.md)
-  screenshots/             # GUI captures (design/ for prototypes, docs/ for real app)
+<details>
+<summary>Development (build from source)</summary>
 
-docs/                      # Documentation
-  architecture/            # Design decisions, diagrams, project structure
-  development/             # Setup, testing, database migration guides
-  ai/                      # Ollama setup, ML integration, benchmarks
-  guides/                  # User guides (troubleshooting, native builds, GPU fixes)
-  performance/             # Performance docs
-  implementations/         # Security, localhost tools, clean.md
+### Prerequisites
 
-tests/unit/                # Rust unit + integration tests
-scripts/                   # Python/PowerShell utility scripts (test/, debug/, utility/)
-config/                    # Tool configuration (non-secret)
+| Requirement | Required? | Notes |
+|-------------|-----------|-------|
+| **Rust 1.95+** | ✅ Yes | [rustup.rs](https://rustup.rs) |
+| **Visual Studio 2022** | ✅ Yes (GUI only) | WinUI 3 requires MSBuild |
+| **Windows 10/11 x64** | ✅ Yes | Uses Win32 APIs |
+
+### Build
+
+```powershell
+# Build the CLI binary (release)
+cargo build --release --bin space-analyzer-cli
+
+# Build the WinUI 3 GUI
+& "D:\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\MSBuild.exe" gui-winui/SpaceAnalyzer.sln -p:Configuration=Debug -p:Platform=x64
+
+# Run the CLI
+.\target\release\space-analyzer-cli.exe scan .
+
+# Format, lint, and test
+cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
-### Code Conventions
+The GUI drives the Rust scanner as a subprocess. Build the CLI first, then the GUI will copy the native tools into its output automatically.
 
-- `rustfmt` + `clippy -D warnings` enforced via `just verify`
-- `thiserror` for library error types, `anyhow` for application errors
-- `///` doc comments on all public items
-- Workspace dependencies in root `Cargo.toml`; member crates pin versions from there
+</details>
+
+---
+
+<details>
+<summary>For AI agents / automation working in this repo</summary>
+
+> Primary issue tracker is **`docs/issues.json`** (schema v1, local-only / gitignored). Derived quick reference: **`docs/ISSUES.md`** (regenerate with `python docs/generate_status_summary.py --write`; gitignored). Do not use `docs/CONSOLIDATED_ISSUE_TRACKER.csv` as source of truth. Update workflow: find by `id:MAIN-XXX` tag in `tags[]` → fix code → update status in `issues.json` → `python docs/export_issues_to_csv.py`
+
+</details>
 
 ---
 
 ## Documentation
 
-- [Architecture Decisions](docs/ARCHITECTURE_DECISIONS.md) — key decisions + on-hold rules (read before automation/cleanup)
+- [Architecture Decisions](docs/ARCHITECTURE_DECISIONS.md) — key decisions + on-hold rules
 - [Data Flow](docs/DATA_FLOW.md) — subsystem map + file locator
 - [AI Integration](docs/ai/) — Ollama setup, embeddings, ML integration, benchmarks
 - [Guides](docs/guides/) — troubleshooting, native builds, GPU fixes
-- [Changelog](docs/CHANGELOG.md) — release notes (current state in `docs/changelog/unreleased.md`)
+- [Changelog](docs/CHANGELOG.md) — release notes
 - [Security](SECURITY.md) — local-first security model
 - [Contributing](CONTRIBUTING.md) — how to contribute
 
@@ -381,27 +259,10 @@ config/                    # Tool configuration (non-secret)
 
 ## Versioning
 
-The Rust core (`src/`, root `Cargo.toml`) and the WinUI 3 frontend (`gui-winui/`) are versioned **independently** but released in lockstep — both are currently **`4.3.0`**. They are designed to work as a combined system, but each can also be used on its own — the Rust core as a library/CLI, and the WinUI 3 app via subprocess calls to that CLI.
-
-**v4.3.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
-- Reclaimability lens (Safe / Caution / Keep tiers) + persistent reclaim columns; `potential_cleanup_bytes` now returns Safe + Caution.
-- Headless `history` table renderer (`--format text`) with ANSI tier colors, duplicate badges, and a pagination footer.
-- WinUI 3 reclaim UI, "Other" bucket decomposition, scan-crash fix, and hardened logging.
-- Agentic Assistant: `search` streaming progress, `semantic_search` tool, duplicate tool-call guard, token streaming.
-- GPU compute crate removed — all post-processing runs on CPU with rayon.
-- Directory size caching (`--dir-cache`) for faster incremental rescans.
-- Age filtering (`--min-age`/`--max-age`) on scan and search.
-- `system` cleanup shortcuts and `diff` subcommands added to CLI.
-
-**v3.7.0** — See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
-
-- **v3.x** — Rust desktop application (active development)
-- **v2.x and earlier** — Web-based Vue 3 + Node.js implementation (archived at [space-analyzer-pro-web](https://github.com/ogneocortext/space-analyzer-pro-web))
+The Rust core and the WinUI 3 frontend are versioned independently but released in lockstep — both are currently **`4.3.0`**. See [CHANGELOG.md](docs/CHANGELOG.md) for full release notes.
 
 ---
 
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
-
-
