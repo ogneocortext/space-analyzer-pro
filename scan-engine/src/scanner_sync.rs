@@ -200,6 +200,10 @@ impl FileScanner {
             all_raw_entries: Vec::new(),
             scanned_files: HashMap::new(),
         };
+        // Every entry yielded by the walker (including hidden/excluded ones) is
+        // recorded here solely for empty-directory detection. A directory that
+        // only contains hidden files is not truly empty.
+        let mut all_disk_entries: Vec<(String, bool)> = Vec::new();
 
         let mut walker = WalkDir::new(path);
         if let Some(depth) = options.max_depth {
@@ -223,6 +227,10 @@ impl FileScanner {
                 Ok(entry) => {
                     let is_dir = entry.file_type().is_dir();
                     let dir_path = entry.path().to_string_lossy().to_string();
+
+                    // Record every on-disk entry (including hidden/excluded ones)
+                    // so empty-directory detection counts hidden children.
+                    all_disk_entries.push((dir_path.clone(), is_dir));
 
                     // Hidden-filter logic
                     if !include_hidden && entry.depth() > 0 && is_dir && Self::dir_entry_is_hidden(&entry) {
@@ -339,13 +347,9 @@ impl FileScanner {
             }
         }
 
-        // Compute true empty dirs from raw entries.
-        let raw_entry_pairs: Vec<(String, bool)> = collections
-            .all_raw_entries
-            .iter()
-            .map(|e| (e.path.clone(), e.is_dir))
-            .collect();
-        let true_empty_dirs = Self::compute_true_empty_dirs(&raw_entry_pairs);
+        // Compute true empty dirs from every entry walked on disk (including
+        // hidden/excluded ones), so a dir holding only hidden files is not empty.
+        let true_empty_dirs = Self::compute_true_empty_dirs(&all_disk_entries);
 
         // Run compute-heavy post-processing on all collected entries.
         let post_result =

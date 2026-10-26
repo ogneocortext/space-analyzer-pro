@@ -153,6 +153,10 @@
   (`map(|&(c,s)| (*c,*s))`).
 
 ### Fixed
+- **Empty-directory detection bug** (`scan-engine/src/scanner_sync.rs`): a directory
+  containing only hidden/dotfiles was incorrectly reported as empty when hidden files
+  were excluded. Empty-dir detection now uses every entry walked on disk (including
+  hidden/excluded ones) so a dir holding only hidden files is not treated as empty.
 - **`node_modules_cleaner` recursion + display bugs**
   (`native/node_modules_cleaner/src/main.rs`): `is_nested_node_modules` now recurses
   properly (was excluding all project-level `node_modules`); display unit bugs fixed
@@ -167,6 +171,36 @@
 - `cargo clippy --workspace --all-targets` ✅ (exit 0; only pre-existing style nits)
 - `cargo test --workspace` ✅ (all crates pass)
 - `cargo build -p win-usn --features napi` ✅
+
+## CLI user-experience improvements
+
+### Added
+- **Shell completions** (`src/cli/args.rs`, `src/cli/mod.rs`): new
+  `space-analyzer-cli completions <shell>` subcommand generates tab-completion
+  scripts for bash, zsh, fish, powershell, and elvish. Add the generated script to
+  your shell profile for tab-completion of flags, subcommands, and values.
+- **`--quiet` flag** (`src/cli/args.rs`): global flag that suppresses all non-essential
+  human-facing output (banners, progress, recommendations, export/report notices).
+  Errors and machine-readable output (`--format json|csv|jsonl|md`) still print.
+- **Config file support** (`src/cli/config.rs` new, `src/cli/scan_command.rs`):
+  reads defaults from `<config_dir>/space-analyzer/config.toml` (Windows:
+  `%APPDATA%\space-analyzer\config.toml`; Linux/macOS: `~/.config/space-analyzer/config.toml`),
+  or from `--config <file>`. CLI flags always override config values. Supported keys:
+  `format`, `top`, `threads`, `no_animation`, `include_hidden`, `no_gpu`.
+- **Proper exit codes** (`src/main.rs`): follows the GNU/clig.dev convention —
+  `0` success, `1` general error (scan failure, I/O error), `2` usage error
+  (bad arguments, invalid flags, path errors). Scripts can distinguish usage
+  problems from runtime failures.
+- **Broken-pipe (EPIPE) handling** (`src/main.rs`): when output is piped to a
+  consumer that closes early (e.g. `head`, `less`), the CLI exits quietly with
+  the appropriate code instead of printing a broken-pipe error.
+
+### Changed
+- **Quiet-aware output**: animated banner, completion animation, permission warnings,
+  export/report notices, and thread-pool warnings are all suppressed under `--quiet`.
+- **Config-driven scan defaults**: `--format`, `--top`, `--threads`,
+  `--no-animation`, `--include-hidden`, and `--no-gpu` can all be set in
+  `config.toml` and overridden per-invocation on the command line.
 
 ## Scanner performance, output schema & drill-down
 

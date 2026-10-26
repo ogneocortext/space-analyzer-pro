@@ -129,7 +129,9 @@ pub fn scan_directory(
         None
     };
     let dir_cache: Option<HashMap<String, (u64, u64, i64)>> = if dir_cache {
-        Database::default_open().ok().and_then(|db| db.load_dir_cache(&cache_key).ok())
+        Database::default_open()
+            .ok()
+            .and_then(|db| db.load_dir_cache(&cache_key).ok())
     } else {
         None
     };
@@ -268,10 +270,7 @@ pub fn scan_directory(
             if dir_cache.is_some() {
                 let mut dir_totals: HashMap<String, (u64, u64)> = HashMap::new();
                 for dir in &shared_result.subdirectories {
-                    dir_totals.insert(
-                        dir.path.clone(),
-                        (dir.total_size, dir.file_count),
-                    );
+                    dir_totals.insert(dir.path.clone(), (dir.total_size, dir.file_count));
                 }
                 let dir_entries: Vec<(String, u64, u64, i64)> = dir_totals
                     .into_iter()
@@ -285,10 +284,7 @@ pub fn scan_directory(
                     })
                     .collect();
                 let _ = db.save_dir_cache(&cache_key, &dir_entries).map_err(|e| {
-                    eprintln!(
-                        "⚠️ Could not save directory cache '{}': {}",
-                        cache_key, e
-                    )
+                    eprintln!("⚠️ Could not save directory cache '{}': {}", cache_key, e)
                 });
             }
         }

@@ -878,7 +878,14 @@ impl Database {
             )?;
             let now = chrono::Utc::now().to_rfc3339();
             for (dir_path, total_size, file_count, mtime) in entries {
-                stmt.execute(params![scan_path, dir_path, *total_size as i64, *file_count as i64, mtime, now])?;
+                stmt.execute(params![
+                    scan_path,
+                    dir_path,
+                    *total_size as i64,
+                    *file_count as i64,
+                    mtime,
+                    now
+                ])?;
             }
         }
         tx.commit()?;

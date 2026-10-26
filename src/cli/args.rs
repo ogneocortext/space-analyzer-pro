@@ -24,6 +24,9 @@ EXAMPLES:
   space-analyzer-cli dedup D:\\Projects
   space-analyzer-cli dedup D:\\Projects --apply --yes
 
+  # Generate shell completions (PowerShell example)
+  space-analyzer-cli completions powershell > $PROFILE
+
   # Inspect and maintain the embedded database
   space-analyzer-cli history --limit 10
   space-analyzer-cli db --info
@@ -107,6 +110,16 @@ pub struct Cli {
     /// Suppress animations and progress output
     #[arg(long, global = true)]
     pub no_animation: bool,
+
+    /// Suppress all non-essential human-facing output (quiet mode).
+    /// Errors and machine-readable data still print.
+    #[arg(long, global = true)]
+    pub quiet: bool,
+
+    /// Path to a TOML config file (default: <config>/space-analyzer/config.toml).
+    /// CLI flags override config file values.
+    #[arg(long, global = true, value_name = "FILE")]
+    pub config: Option<String>,
 
     /// Assume "yes" for destructive prompts (deduplication, history deletion)
     #[arg(short = 'y', long, global = true)]
@@ -637,6 +650,35 @@ pub enum Commands {
     /// System cleanup shortcuts (hibernation, WinSxS, VHD, shadow copies,
     /// Recycle Bin). Read-only by default; pass --apply --yes to execute.
     System(SystemArgs),
+
+    /// Generate shell completion scripts for your shell.
+    ///
+    /// Print a completion script to stdout. Source it in your shell profile
+    /// to get tab-completion for `space-analyzer-cli`.
+    ///
+    /// Supported shells: bash, zsh, fish, powershell, elvish.
+    ///
+    /// Examples:
+    ///   space-analyzer-cli completions powershell > $PROFILE
+    ///   space-analyzer-cli completions bash > /etc/bash_completion.d/space-analyzer
+    ///   space-analyzer-cli completions zsh > ~/.zsh/completions/_space-analyzer-cli
+    ///   space-analyzer-cli completions fish > ~/.config/fish/completions/space-analyzer-cli.fish
+    Completions {
+        /// Shell to generate completions for.
+        #[arg(value_enum)]
+        shell: CompletionShell,
+    },
+}
+
+/// Shells supported for completion generation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "lower")]
+pub enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+    PowerShell,
+    Elvish,
 }
 
 /// Arguments for the `search` subcommand.

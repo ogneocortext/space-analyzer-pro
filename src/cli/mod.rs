@@ -2,6 +2,7 @@ pub mod ai_command;
 pub mod app_inventory;
 pub mod args;
 pub mod bloat;
+pub mod config;
 pub mod db_command;
 pub mod dedup;
 pub mod dependencies;
@@ -27,15 +28,24 @@ pub mod types;
 pub mod usn;
 
 use args::{Cli, Commands};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::shells::{Bash, Elvish, Fish, PowerShell, Zsh};
 use space_analyzer_pro_desktop::error::AppResult;
+use std::io;
 
 pub fn main() -> AppResult<()> {
     let cli = Cli::parse();
     let output_format = cli.format;
     let top_n = cli.top;
     let no_anim = cli.no_animation;
+    let quiet = cli.quiet;
+    let config = cli.config;
     let yes = cli.yes;
+
+    // ── Shell completions ──────────────────────────────────────────────
+    if let Commands::Completions { shell } = &cli.command {
+        return print_completions(*shell);
+    }
 
     match cli.command {
         Commands::Scan {
@@ -102,6 +112,8 @@ pub fn main() -> AppResult<()> {
                 output_format,
                 top_n,
                 no_anim,
+                quiet,
+                config,
             };
             scan_command::handle_scan(args)
         }
@@ -246,5 +258,31 @@ pub fn main() -> AppResult<()> {
         Commands::Search(args) => search::run(args, output_format),
         Commands::Diff(args) => diff::run(args, output_format),
         Commands::System(args) => system::run(args, output_format),
+        // Handled by early return above; kept for exhaustiveness.
+        Commands::Completions { .. } => unreachable!(),
     }
+}
+
+/// Print shell completion scripts to stdout.
+fn print_completions(shell: args::CompletionShell) -> AppResult<()> {
+    let mut cmd = Cli::command();
+    let bin_name = "space-analyzer-cli";
+    match shell {
+        args::CompletionShell::Bash => {
+            clap_complete::generate(Bash, &mut cmd, bin_name, &mut io::stdout());
+        }
+        args::CompletionShell::Zsh => {
+            clap_complete::generate(Zsh, &mut cmd, bin_name, &mut io::stdout());
+        }
+        args::CompletionShell::Fish => {
+            clap_complete::generate(Fish, &mut cmd, bin_name, &mut io::stdout());
+        }
+        args::CompletionShell::PowerShell => {
+            clap_complete::generate(PowerShell, &mut cmd, bin_name, &mut io::stdout());
+        }
+        args::CompletionShell::Elvish => {
+            clap_complete::generate(Elvish, &mut cmd, bin_name, &mut io::stdout());
+        }
+    }
+    Ok(())
 }

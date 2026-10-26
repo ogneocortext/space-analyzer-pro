@@ -2,14 +2,16 @@ use chrono::DateTime;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 use walkdir::WalkDir;
 
 use crate::categories::{ReclaimTier, classify_reclaimability, extension_to_category};
 use crate::formatting::allocated_size;
-use crate::post_process::{post_process_entries, PostProcessResult, RawFileEntry, extract_filename, strip_verbatim};
+use crate::post_process::{
+    PostProcessResult, RawFileEntry, extract_filename, post_process_entries, strip_verbatim,
+};
 use crate::types::{
     DirInfo, DriveInfo, FileInfo, ScanOptions, ScanProgress, ScanResult, SearchQuery, SearchResult,
     SystemInfo,

@@ -1,5 +1,6 @@
 use crate::animation;
 use crate::cli::args::OutputFormat;
+use crate::cli::config::{load_config, resolve_config_path};
 use crate::cli::helpers;
 use crate::cli::output;
 use crate::cli::report;
@@ -46,24 +47,69 @@ pub struct ScanArgs {
     pub output_format: OutputFormat,
     pub top_n: usize,
     pub no_anim: bool,
+    /// Quiet mode — suppress all non-essential human-facing output.
+    pub quiet: bool,
+    /// Path to a TOML config file (overrides defaults).
+    pub config: Option<String>,
 }
 
 pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
-    sink::route_human_output_to_stderr(args.output_format.is_machine_readable() || args.stream);
+    // ── Config file defaults ─────────────────────────────────────────
+    // Config file values serve as defaults; explicit CLI flags override them.
+    let config = args
+        .config
+        .as_deref()
+        .and_then(|p| load_config(Path::new(p)))
+        .or_else(|| resolve_config_path(None).and_then(|p| load_config(&p)));
 
+    let config_format_str = config.as_ref().and_then(|c| c.output_format.as_deref());
+    let config_format = config_format_str.and_then(|s| match s {
+        "json" => Some(OutputFormat::Json),
+        "csv" => Some(OutputFormat::Csv),
+        "jsonl" => Some(OutputFormat::Jsonl),
+        "md" | "markdown" => Some(OutputFormat::Md),
+        "text" => Some(OutputFormat::Text),
+        _ => None,
+    });
+    let effective_format = if args.output_format == OutputFormat::Text {
+        // Only override text (the default) if config specifies a format.
+        config_format.unwrap_or(args.output_format)
+    } else {
+        args.output_format
+    };
+    let config_top = config.as_ref().and_then(|c| c.top).unwrap_or(args.top_n);
+    let config_threads = config
+        .as_ref()
+        .and_then(|c| c.threads)
+        .unwrap_or(args.threads);
+    let config_no_anim = config
+        .as_ref()
+        .and_then(|c| c.no_animation)
+        .unwrap_or(args.no_anim);
+    let config_include_hidden = config
+        .as_ref()
+        .and_then(|c| c.include_hidden)
+        .unwrap_or(args.include_hidden);
+    let config_no_gpu = config
+        .as_ref()
+        .and_then(|c| c.no_gpu)
+        .unwrap_or(args.no_gpu);
+
+    sink::route_human_output_to_stderr(effective_format.is_machine_readable() || args.stream);
+
+    // ── Thread pool ──────────────────────────────────────────────────
     // Build the rayon thread pool ONCE per process with the requested thread count.
-    // `build_global()` can only succeed once per process, so it must live at CLI
-    // startup — not inside the scanner (which may be called repeatedly and would
-    // silently ignore `--threads` after the first initialization).
-    if args.threads > 0 {
+    if config_threads > 0 {
         if let Err(e) = rayon::ThreadPoolBuilder::new()
-            .num_threads(args.threads)
+            .num_threads(config_threads)
             .build_global()
         {
-            eprintln!(
-                "⚠️ Could not apply --threads {}: {}. Using default thread pool.",
-                args.threads, e
-            );
+            if !args.quiet {
+                eprintln!(
+                    "⚠️ Could not apply --threads {}: {}. Using default thread pool.",
+                    config_threads, e
+                );
+            }
         }
     }
 
@@ -84,7 +130,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     helpers::validate_size_window(min_size, max_size)?;
     helpers::validate_age_window(args.min_age, args.max_age)?;
 
-    if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {
+    if args.output_format == OutputFormat::Text && !config_no_anim && !args.stream && !args.quiet {
         animation::print_animated_banner();
     }
 
@@ -111,16 +157,16 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
 
     let result = scan::scan_directory(
         &scan_path,
-        args.verbose && !args.no_anim && !args.stream,
+        args.verbose && !config_no_anim && !args.stream,
         effective_max_depth,
         effective_deep,
         effective_shallow,
         min_size,
         max_size,
-        args.include_hidden,
+        config_include_hidden,
         args.follow_symlinks,
-        args.threads,
-        args.no_gpu,
+        config_threads,
+        config_no_gpu,
         args.cache,
         args.dir_cache,
         args.stream,
@@ -128,14 +174,9 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         args.progress_log,
         args.files,
         args.drill,
-        args.top_n,
+        config_top,
         true,
         args.log.clone(),
-        // Always persist to history so the agentic `ask` loop and History view
-        // have data to analyze. The saved record uses a generous
-        // largest-files/top-directories cap (see `scan_directory`), matching the
-        // GUI. `--save-history` remains accepted (the GUI passes it) but saving
-        // is now unconditional for CLI scans, as it was before this refactor.
         args.no_anim,
         args.min_age,
         args.max_age,
@@ -154,7 +195,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         })
         .collect();
     let permission_error_count = permission_errors.len();
-    if permission_error_count >= 5 {
+    if permission_error_count >= 5 && !args.quiet {
         eprintln!(
             "⚠️  {} directories were skipped due to permissions. For full coverage, \
              re-run from an elevated (Administrator) terminal.",
@@ -168,13 +209,13 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         }
     }
 
-    if args.output_format == OutputFormat::Text && !args.no_anim && !args.stream {
+    if effective_format == OutputFormat::Text && !config_no_anim && !args.stream && !args.quiet {
         animation::print_completion_animation(result.duration_secs);
     }
 
     if !args.stream {
         output_results(
-            args.output_format,
+            effective_format,
             &result,
             &scan_path_display,
             args.top_n,
@@ -185,8 +226,10 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     }
 
     if let Some(export_path) = &args.export {
-        report::export_results(&result, export_path, args.output_format, args.top_n)?;
-        eprintln!("✅ Results exported to: {export_path}");
+        report::export_results(&result, export_path, effective_format, args.top_n)?;
+        if !args.quiet {
+            eprintln!("✅ Results exported to: {export_path}");
+        }
     }
 
     if args.report {
@@ -223,7 +266,9 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
                 e
             ))
         })?;
-        eprintln!("✅ Report written to: {}", report_path.display());
+        if !args.quiet {
+            eprintln!("✅ Report written to: {}", report_path.display());
+        }
     }
 
     // NOTE: saving to history is handled inside `scan_directory` (when

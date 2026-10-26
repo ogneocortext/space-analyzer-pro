@@ -209,10 +209,7 @@ fn count_dir_entries(entries: &[RawFileEntry]) -> HashMap<String, u64> {
 
 /// Compute per-directory aggregate information for immediate subdirectories of
 /// `scan_root`.
-fn compute_subdirectories(
-    entries: &[RawFileEntry],
-    scan_root: Option<&Path>,
-) -> Vec<DirInfo> {
+fn compute_subdirectories(entries: &[RawFileEntry], scan_root: Option<&Path>) -> Vec<DirInfo> {
     let mut dir_sizes: HashMap<String, u64> = HashMap::new();
     let mut dir_file_counts: HashMap<String, u64> = HashMap::new();
     let mut dir_dir_counts: HashMap<String, u64> = HashMap::new();
