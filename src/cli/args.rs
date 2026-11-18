@@ -103,9 +103,15 @@ pub struct Cli {
     #[arg(short, long, global = true, value_enum)]
     pub format: Option<OutputFormat>,
 
-    /// Number of top items to show in breakdowns (minimum 1)
-    #[arg(long, global = true, default_value = "20", value_parser = parse_at_least_one)]
-    pub top: usize,
+    /// Number of top items to show in breakdowns (minimum 1).
+    ///
+    /// Deliberately has no clap default: an `Option` lets the CLI tell "user
+    /// passed `--top`" apart from "user passed nothing", which is what makes
+    /// "CLI flags override the config file" actually true. With a clap default
+    /// the value was always populated, so `config.toml`'s `top` silently won
+    /// over an explicit flag.
+    #[arg(long, global = true, value_parser = parse_at_least_one)]
+    pub top: Option<usize>,
 
     /// Suppress animations and progress output
     #[arg(long, global = true)]

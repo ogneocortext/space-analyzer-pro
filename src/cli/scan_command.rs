@@ -14,6 +14,20 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Built-in `--top` when neither the flag nor the config file supplies one.
+/// Matches the historical clap default so behaviour is unchanged for users who
+/// configure nothing.
+const DEFAULT_TOP_N: usize = 20;
+
+/// Resolve the effective "top N" with the documented precedence:
+/// explicit CLI flag > config file > built-in default.
+///
+/// Pulled out as a free function so the precedence is unit-testable without
+/// spinning up a whole scan.
+fn resolve_top_n(cli: Option<usize>, config: Option<usize>) -> usize {
+    cli.or(config).unwrap_or(DEFAULT_TOP_N)
+}
+
 #[allow(clippy::too_many_arguments)]
 pub struct ScanArgs {
     pub path: Option<String>,
@@ -44,7 +58,9 @@ pub struct ScanArgs {
     pub files: bool,
     pub drill: usize,
     pub log: Option<String>,
-    pub top_n: usize,
+    /// Explicitly requested `--top`. `None` means the flag was absent, so the
+    /// config file (and then the built-in default) may supply the value.
+    pub top_n: Option<usize>,
     pub no_anim: bool,
     /// Format explicitly requested on the CLI (None = not specified, consult config).
     pub format: Option<OutputFormat>,
@@ -75,7 +91,11 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     let effective_format = args
         .format
         .unwrap_or_else(|| config_format.unwrap_or(OutputFormat::Text));
-    let config_top = config.as_ref().and_then(|c| c.top).unwrap_or(args.top_n);
+    // One resolved value for the whole run. Previously the scan itself used the
+    // config-derived value while the display/export used the raw CLI value, so
+    // the two could disagree (and the header would claim "showing N of M" for a
+    // list that had already been truncated to a different N).
+    let effective_top = resolve_top_n(args.top_n, config.as_ref().and_then(|c| c.top));
     let config_threads = config
         .as_ref()
         .and_then(|c| c.threads)
@@ -172,7 +192,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
         args.progress_log,
         args.files,
         args.drill,
-        config_top,
+        effective_top,
         true,
         args.log.clone(),
         args.no_anim,
@@ -216,7 +236,7 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
             effective_format,
             &result,
             &scan_path_display,
-            args.top_n,
+            effective_top,
             args.verbose,
             args.no_anim,
             &depth_label(effective_deep, effective_shallow, effective_max_depth),
@@ -224,14 +244,14 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     }
 
     if let Some(export_path) = &args.export {
-        report::export_results(&result, export_path, effective_format, args.top_n)?;
+        report::export_results(&result, export_path, effective_format, effective_top)?;
         if !args.quiet {
             eprintln!("✅ Results exported to: {export_path}");
         }
     }
 
     if args.report {
-        let report_content = report::generate_report(&result, &scan_path_display, args.top_n);
+        let report_content = report::generate_report(&result, &scan_path_display, effective_top);
         let reports_dir = match &args.report_dir {
             Some(dir) => PathBuf::from(dir),
             None => Path::new(env!("CARGO_MANIFEST_DIR")).join("reports"),
@@ -294,8 +314,8 @@ pub fn handle_scan(args: ScanArgs) -> AppResult<()> {
     }
 
     if args.trace_origins {
-        let max_dirs = args.top_n.max(60);
-        let max_files = args.top_n.max(40);
+        let max_dirs = effective_top.max(60);
+        let max_files = effective_top.max(40);
         let origin_report = build_report(&result, max_dirs, max_files);
         crate::cli::origins::print_origin_report(&origin_report, args.no_anim);
     }
@@ -347,4 +367,27 @@ fn output_results(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_top_overrides_config_top() {
+        // The documented contract ("CLI flags always override config values")
+        // was inverted: `top` had a clap default, so the config value always won
+        // and `--top 40` was silently reduced to the configured `top = 10`.
+        assert_eq!(resolve_top_n(Some(40), Some(10)), 40);
+    }
+
+    #[test]
+    fn config_top_applies_when_flag_absent() {
+        assert_eq!(resolve_top_n(None, Some(10)), 10);
+    }
+
+    #[test]
+    fn builtin_default_applies_when_neither_is_set() {
+        assert_eq!(resolve_top_n(None, None), DEFAULT_TOP_N);
+    }
 }
