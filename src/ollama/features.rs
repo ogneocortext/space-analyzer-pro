@@ -88,12 +88,20 @@ mod tests {
     }
 
     /// Skip the test (pass with message) unless Ollama is reachable.
-    async fn skip_unless_ollama(url: &str) {
-        if !ollama_reachable(url).await {
+    ///
+    /// Returns `true` when the service answered, `false` when it did not. Callers
+    /// must `return` on `false`: printing "SKIP" and then carrying on makes the
+    /// test issue a real request that blocks for the full client timeout and
+    /// fails, which is the opposite of a skip.
+    async fn skip_unless_ollama(url: &str) -> bool {
+        if ollama_reachable(url).await {
+            true
+        } else {
             eprintln!(
                 "  SKIP: Ollama not reachable at {} (start it to run this test)",
                 url
             );
+            false
         }
     }
 
@@ -378,7 +386,9 @@ mod tests {
 
     #[tokio::test]
     async fn live_semantic_search_returns_top_match_for_tax_query() {
-        skip_unless_ollama("http://127.0.0.1:11434").await;
+        if !skip_unless_ollama("http://127.0.0.1:11434").await {
+            return;
+        }
         use crate::ollama::OllamaClient;
 
         let client = OllamaClient::new("http://127.0.0.1:11434", "nomic-embed-text:v1.5")
@@ -419,7 +429,9 @@ mod tests {
 
     #[tokio::test]
     async fn live_summarize_scan_returns_non_empty_summary() {
-        skip_unless_ollama("http://127.0.0.1:11434").await;
+        if !skip_unless_ollama("http://127.0.0.1:11434").await {
+            return;
+        }
         use crate::ollama::OllamaClient;
 
         let model = std::env::var("OLLAMA_SUMMARIZE_MODEL").unwrap_or_else(|_| "qwen3.5:4b".into());
@@ -447,7 +459,9 @@ mod tests {
 
     #[tokio::test]
     async fn live_agentic_question_calls_at_least_one_tool() {
-        skip_unless_ollama("http://127.0.0.1:11434").await;
+        if !skip_unless_ollama("http://127.0.0.1:11434").await {
+            return;
+        }
         use crate::ollama::OllamaClient;
 
         let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
@@ -485,7 +499,9 @@ mod tests {
 
     #[tokio::test]
     async fn live_tool_call_response_parses_after_default_type_fix() {
-        skip_unless_ollama("http://127.0.0.1:11434").await;
+        if !skip_unless_ollama("http://127.0.0.1:11434").await {
+            return;
+        }
         use crate::ollama::OllamaClient;
 
         let client = OllamaClient::new("http://127.0.0.1:11434", "qwen3.5:4b")
