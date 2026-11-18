@@ -8,8 +8,12 @@ use crate::cli::args::OutputFormat;
 use crate::hprintln;
 
 /// Run the `app-inventory` subcommand.
-pub fn handle(output_format: OutputFormat) -> AppResult<()> {
+pub fn handle(output_format: OutputFormat, drive_filter: Option<&str>) -> AppResult<()> {
     let report = app_inventory::build_inventory_report();
+    let report = match drive_filter {
+        Some(d) => app_inventory::filter_by_drive(&report, d),
+        None => report,
+    };
     if output_format.is_machine_readable() {
         println!(
             "{}",

@@ -195,9 +195,9 @@ pub fn main() -> AppResult<()> {
                 scan_id,
             )
         }
-        Commands::AppInventory => {
+        Commands::AppInventory { drive } => {
             sink::route_human_output_to_stderr(output_format.is_machine_readable());
-            app_inventory::handle(output_format)
+            app_inventory::handle(output_format, drive.as_deref())
         }
         Commands::Settings {
             get,

@@ -644,7 +644,11 @@ pub enum Commands {
 
     /// Enumerate installed applications and dev tools, then flag installs that are
     /// duplicated across drives/paths or present in multiple versions
-    AppInventory,
+    AppInventory {
+        /// Only show instances installed on this drive (e.g. `C:`).
+        #[arg(long)]
+        drive: Option<String>,
+    },
 
     /// Compare two saved scan-history records side by side (before/after).
     Diff(DiffArgs),

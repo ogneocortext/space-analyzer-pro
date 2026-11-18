@@ -4,4 +4,4 @@ pub mod report;
 pub mod utils;
 
 pub use models::{AppGroup, AppInstance, AppInventoryReport};
-pub use report::build_inventory_report;
+pub use report::{build_inventory_report, filter_by_drive};
