@@ -159,7 +159,7 @@ fn available_shortcuts() -> Vec<CleanupShortcut> {
 /// Best-effort Recycle Bin size estimate (read-only, no deletion).
 fn recycle_bin_size_best_effort() -> Option<u64> {
     if cfg!(windows) {
-        let script = "Get-ChildItem -Path '$env:SYSTEMDRIVE\\\\$Recycle.Bin' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum | Select-Object -ExpandProperty Sum";
+        let script = "Get-ChildItem -Path ($env:SYSTEMDRIVE + '\\$Recycle.Bin') -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum | Select-Object -ExpandProperty Sum";
         if let Ok(output) = Command::new("powershell.exe")
             .args(["-NoProfile", "-Command", script])
             .output()
@@ -454,7 +454,7 @@ fn run_recycle(
 
     // First measure, then empty. The measure gives us freed_bytes; the clear
     // does the actual deletion. Both run in the same PowerShell invocation.
-    let script = "Get-ChildItem -Path '$env:SYSTEMDRIVE\\\\$Recycle.Bin' -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum | Select-Object -ExpandProperty Sum; Clear-RecycleBin -Force -ErrorAction SilentlyContinue";
+    let script = "Get-ChildItem -Path ($env:SYSTEMDRIVE + '\\$Recycle.Bin') -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum | Select-Object -ExpandProperty Sum; Clear-RecycleBin -Force -ErrorAction SilentlyContinue";
     let output = Command::new("powershell.exe")
         .args(["-NoProfile", "-Command", script])
         .output()?;
