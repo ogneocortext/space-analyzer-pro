@@ -121,6 +121,22 @@ public class StreamComplete
     [JsonPropertyName("category_sizes")]
     public Dictionary<string, ulong> CategorySizes { get; set; } = new();
 
+    /// <summary>
+    /// Effective maximum traversal depth, or <c>null</c> when the whole subtree was
+    /// walked (<c>--deep</c>). Mirrors <see cref="ScanResult.ScanDepth"/> on the
+    /// streaming path the GUI actually consumes.
+    /// </summary>
+    [JsonPropertyName("scan_depth")]
+    public int? ScanDepth { get; set; }
+
+    /// <summary>
+    /// True when <see cref="ScanDepth"/> capped traversal, so
+    /// <see cref="TotalSizeBytes"/> and the category maps cover only the files
+    /// within that depth and under-report the tree.
+    /// </summary>
+    [JsonPropertyName("depth_limited")]
+    public bool DepthLimited { get; set; }
+
     [JsonPropertyName("potential_cleanup_bytes")]
     public ulong PotentialCleanupBytes { get; set; }
 

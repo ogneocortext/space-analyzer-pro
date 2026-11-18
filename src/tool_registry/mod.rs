@@ -96,6 +96,8 @@ mod tests {
             timestamp: String::new(),
             is_index_only: false,
             drill_down: std::collections::HashMap::new(),
+            scan_depth: None,
+            depth_limited: false,
         }
     }
 

@@ -152,6 +152,8 @@ fn scan_result_with_many_files_populates_types() {
         potential_cleanup_bytes: 0,
         timestamp: String::new(),
         drill_down: HashMap::new(),
+        scan_depth: None,
+        depth_limited: false,
     };
     say!(
         "   Files: {} | Types: {:?}",
@@ -160,6 +162,57 @@ fn scan_result_with_many_files_populates_types() {
     );
     assert_eq!(result.total_files, 20_000);
     assert_eq!(result.file_types.get("log").copied().unwrap_or(0), 15000);
+    // A fully-walked tree is not depth-limited, so its totals are complete.
+    assert_eq!(result.scan_depth, None);
+    assert!(!result.depth_limited);
+    pass!();
+}
+
+#[test]
+fn scan_result_depth_limited_marks_partial_total() {
+    say!("🔍 Test: depth-limited ScanReport flags a partial total");
+    let mut file_types = HashMap::new();
+    file_types.insert("log".to_string(), 100);
+
+    let mut result = ScanReport {
+        total_files: 100,
+        total_size_bytes: 1024,
+        total_size_mb: 0.001,
+        duration_secs: 1.0,
+        file_types,
+        extension_sizes: HashMap::new(),
+        largest_files: vec![],
+        errors: Vec::new(),
+        path: ".".to_string(),
+        total_dirs: 0,
+        top_directories: Vec::new(),
+        empty_dirs: Vec::new(),
+        scanned_files: HashMap::new(),
+        category_sizes: HashMap::new(),
+        reclaim_tier_sizes: HashMap::new(),
+        category_reclaimable: HashMap::new(),
+        is_index_only: false,
+        potential_cleanup_bytes: 0,
+        timestamp: String::new(),
+        drill_down: HashMap::new(),
+        scan_depth: None,
+        depth_limited: false,
+    };
+
+    // Simulate a `--max-depth 3` run: the totals only cover the first levels.
+    result.scan_depth = Some(3);
+    result.depth_limited = true;
+
+    assert_eq!(result.scan_depth, Some(3));
+    assert!(
+        result.depth_limited,
+        "a truncated walk must be flagged or its totals read as complete"
+    );
+
+    // A complete re-walk clears the flag again.
+    result.scan_depth = None;
+    result.depth_limited = false;
+    assert!(!result.depth_limited);
     pass!();
 }
 

@@ -51,34 +51,31 @@ pub fn export_results(
 /// Render the scan as a stable, human-friendly JSON document.
 ///
 /// Unlike serializing `ScanReport` directly, this curates the field order,
-/// rounds noisy floats (`total_size_mb`, `duration_secs`), adds human-readable
-/// size strings, and omits the per-file map unless it actually carries data.
+/// rounds noisy floats (`total_size_mb`, `duration_secs`), and omits the
+/// per-file map unless it actually carries data.
+///
+/// Byte-valued maps stay **numeric** and gain separate `*_human` companions
+/// rather than being replaced by formatted strings. Emitting strings here broke
+/// the published contract: `gui-winui/Models/ScanResult.cs` types
+/// `category_sizes` as `Dictionary<string, ulong>`, and a consumer cannot sum
+/// or compare "336.62 KB" against `total_size_bytes`.
+///
 /// The GUI consumes the streaming JSONL event, not this document, so reshaping
 /// it cannot break the desktop app.
 pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
-    // Human-readable companions for the raw-byte category maps so a reader
-    // does not have to mentally convert 15386990550 to "15 GB".
-    let category_reclaimable: serde_json::Value = serde_json::json!(
-        result
-            .category_reclaimable
-            .iter()
-            .map(|(k, v)| (k.clone(), format_bytes(*v)))
-            .collect::<std::collections::HashMap<String, String>>()
-    );
-    let category_sizes: serde_json::Value = serde_json::json!(
-        result
-            .category_sizes
-            .iter()
-            .map(|(k, v)| (k.clone(), format_bytes(*v)))
-            .collect::<std::collections::HashMap<String, String>>()
-    );
-    let reclaim_tier_sizes: serde_json::Value = serde_json::json!(
-        result
-            .reclaim_tier_sizes
-            .iter()
-            .map(|(k, v)| (k.clone(), format_bytes(*v)))
-            .collect::<std::collections::HashMap<String, String>>()
-    );
+    // Human-readable companions for the raw-byte category maps, kept alongside
+    // the numbers so a reader does not have to mentally convert 15386990550 to
+    // "15 GB" — but does not have to guess at it either.
+    let humanize = |map: &std::collections::HashMap<String, u64>| {
+        serde_json::json!(
+            map.iter()
+                .map(|(k, v)| (k.clone(), format_bytes(*v)))
+                .collect::<std::collections::HashMap<String, String>>()
+        )
+    };
+    let category_sizes_human = humanize(&result.category_sizes);
+    let reclaim_tier_sizes_human = humanize(&result.reclaim_tier_sizes);
+    let category_reclaimable_human = humanize(&result.category_reclaimable);
 
     let top_directories: Vec<serde_json::Value> = result
         .top_directories
@@ -114,9 +111,16 @@ pub fn generate_json_pretty(result: &ScanReport) -> AppResult<String> {
         "errors": result.errors,
         "file_types": result.file_types,
         "extension_sizes": result.extension_sizes,
-        "category_sizes": category_sizes,
-        "reclaim_tier_sizes": reclaim_tier_sizes,
-        "category_reclaimable": category_reclaimable,
+        "category_sizes": result.category_sizes,
+        "category_sizes_human": category_sizes_human,
+        "reclaim_tier_sizes": result.reclaim_tier_sizes,
+        "reclaim_tier_sizes_human": reclaim_tier_sizes_human,
+        "category_reclaimable": result.category_reclaimable,
+        "category_reclaimable_human": category_reclaimable_human,
+        // Depth provenance: lets a consumer tell a complete measurement from a
+        // `--max-depth`/`--shallow` run whose totals are intentionally partial.
+        "scan_depth": result.scan_depth,
+        "depth_limited": result.depth_limited,
         "top_directories": top_directories,
         "largest_files": result
             .largest_files
@@ -195,6 +199,10 @@ pub fn generate_jsonl(result: &ScanReport) -> AppResult<String> {
         "potential_cleanup_bytes": result.potential_cleanup_bytes,
         "timestamp": result.timestamp,
         "error_count": result.errors.len(),
+        // Same provenance as `--format json`, so a JSONL consumer is not left
+        // guessing whether a total covers the whole tree.
+        "scan_depth": result.scan_depth,
+        "depth_limited": result.depth_limited,
     }))?);
 
     let mut extensions: Vec<(&String, &u64)> = result.extension_sizes.iter().collect();
@@ -462,5 +470,65 @@ mod tests {
             value.get("scanned_files").is_some(),
             "populated scanned_files must be present"
         );
+    }
+
+    #[test]
+    fn json_pretty_keeps_byte_maps_numeric_with_human_companions() {
+        let mut r = sample();
+        r.category_sizes.insert("Images".into(), 1_500_000);
+        r.reclaim_tier_sizes.insert("Safe".into(), 2_500_000);
+        r.category_reclaimable.insert("Documents".into(), 750_000);
+
+        let value: serde_json::Value =
+            serde_json::from_str(&generate_json_pretty(&r).unwrap()).unwrap();
+
+        // Raw bytes must stay numbers: `ScanResult.cs` declares these as
+        // `Dictionary<string, ulong>`, and no consumer can do arithmetic on
+        // "1.43 MB". Replacing them with formatted strings silently broke that.
+        assert_eq!(value["category_sizes"]["Images"], 1_500_000);
+        assert_eq!(value["reclaim_tier_sizes"]["Safe"], 2_500_000);
+        assert_eq!(value["category_reclaimable"]["Documents"], 750_000);
+
+        // The readable form is additive, never a substitute.
+        assert_eq!(value["category_sizes_human"]["Images"], "1.43 MB");
+        assert_eq!(value["reclaim_tier_sizes_human"]["Safe"], "2.38 MB");
+        assert_eq!(
+            value["category_reclaimable_human"]["Documents"],
+            "732.42 KB"
+        );
+    }
+
+    #[test]
+    fn json_pretty_reports_depth_provenance() {
+        let json = generate_json_pretty(&sample()).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        // An un-tagged partial total is indistinguishable from a real one.
+        assert!(value.get("scan_depth").is_some(), "scan_depth missing");
+        assert!(
+            value.get("depth_limited").is_some(),
+            "depth_limited missing"
+        );
+        assert_eq!(value["depth_limited"], false);
+
+        let mut limited = sample();
+        limited.scan_depth = Some(3);
+        limited.depth_limited = true;
+        let value: serde_json::Value =
+            serde_json::from_str(&generate_json_pretty(&limited).unwrap()).unwrap();
+        assert_eq!(value["scan_depth"], 3);
+        assert_eq!(value["depth_limited"], true);
+    }
+
+    #[test]
+    fn jsonl_summary_reports_depth_provenance() {
+        let mut r = sample();
+        r.scan_depth = Some(1);
+        r.depth_limited = true;
+        let first = generate_jsonl(&r).unwrap();
+        let summary: serde_json::Value =
+            serde_json::from_str(first.lines().next().unwrap()).unwrap();
+        assert_eq!(summary["scan_depth"], 1);
+        assert_eq!(summary["depth_limited"], true);
     }
 }

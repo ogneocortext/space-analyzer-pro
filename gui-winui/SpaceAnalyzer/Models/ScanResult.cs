@@ -26,6 +26,25 @@ public class ScanResult
     public List<string> EmptyDirs { get; set; } = new();
     [JsonPropertyName("category_sizes")]
     public Dictionary<string, ulong> CategorySizes { get; set; } = new();
+    /// <summary>
+    /// Effective maximum traversal depth for this scan, or <c>null</c> when the whole
+    /// subtree was walked (<c>--deep</c>).
+    /// </summary>
+    /// <remarks>
+    /// The Rust side emits this so a consumer can tell a complete measurement from a
+    /// deliberately truncated one: without it, a <c>--max-depth 3</c> run reports a
+    /// <see cref="TotalSizeBytes"/> covering only the first three levels, which looks
+    /// exactly like a real total.
+    /// </remarks>
+    [JsonPropertyName("scan_depth")]
+    public int? ScanDepth { get; set; }
+    /// <summary>
+    /// True when <see cref="ScanDepth"/> capped traversal. When set,
+    /// <see cref="TotalSizeBytes"/>, <see cref="CategorySizes"/> and the per-folder
+    /// sizes describe only the files within that depth and under-report the tree.
+    /// </summary>
+    [JsonPropertyName("depth_limited")]
+    public bool DepthLimited { get; set; }
     [JsonPropertyName("potential_cleanup_bytes")]
     public ulong PotentialCleanupBytes { get; set; }
     [JsonPropertyName("timestamp")]

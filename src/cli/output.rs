@@ -60,6 +60,16 @@ pub fn print_text_results(
         result.total_size_mb
     );
     hprintln!("   Duration: {:.2} seconds", result.duration_secs);
+    // A depth-limited scan reports only the files it was allowed to reach, so
+    // the total and every per-folder size silently under-report the real tree.
+    // Say so at the point the misleading number is printed, not just in the
+    // "Depth:" line above it.
+    if result.depth_limited {
+        hprintln!(
+            "   ⚠️  Depth-limited ({}) — this total and the per-folder sizes only cover files\n       within that depth, so they under-report the real size of the tree. Re-run\n       with --deep for a true figure.",
+            depth_label
+        );
+    }
     if !result.errors.is_empty() {
         hprintln!("   Errors:   {} (access denied, etc.)", result.errors.len());
         for error in result.errors.iter().take(10) {

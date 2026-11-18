@@ -323,6 +323,20 @@ pub fn scan_directory(
     result.duration_secs = duration;
     result.path = super::helpers::display_path(path);
     result.errors = shared_result.errors;
+
+    // Describe the depth that actually ran, using the same resolution as the
+    // `depth_mode` branch above so the report can never disagree with the scan.
+    // A depth-limited run reports a partial total; saying so is the difference
+    // between a truncated number and a wrong one.
+    let effective_depth: Option<usize> = if deep {
+        None
+    } else if shallow || max_depth == Some(1) {
+        Some(1)
+    } else {
+        Some(max_depth.unwrap_or(5))
+    };
+    result.scan_depth = effective_depth;
+    result.depth_limited = effective_depth.is_some();
     result.scanned_files = shared_result.scanned_files.clone();
     // The per-file map can dwarf every other field on a large tree. The streaming
     // path never serializes it (the Complete event omits `scanned_files`), and the
@@ -433,6 +447,8 @@ pub fn scan_directory(
             potential_cleanup_bytes: result.potential_cleanup_bytes,
             timestamp: result.timestamp.clone(),
             drill_down: result.drill_down.clone(),
+            scan_depth: result.scan_depth,
+            depth_limited: result.depth_limited,
         }));
         let line = serde_json::to_string(&complete).unwrap_or_default();
         println!("{}", line);

@@ -66,6 +66,16 @@ pub struct CompleteEvent {
     pub timestamp: String,
     #[serde(default)]
     pub drill_down: HashMap<String, DirDrillDown>,
+    /// Effective maximum traversal depth for this scan, or `None` when the whole
+    /// subtree was walked (`--deep`). Mirrors `ScanReport::scan_depth` so the
+    /// streaming path the GUI consumes carries the same provenance as the
+    /// one-shot JSON document.
+    #[serde(default)]
+    pub scan_depth: Option<usize>,
+    /// True when `scan_depth` capped traversal, so `total_size_bytes` and the
+    /// category maps cover only the files within that depth.
+    #[serde(default)]
+    pub depth_limited: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

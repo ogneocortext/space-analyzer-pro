@@ -84,6 +84,20 @@ pub struct ScanReport {
     /// without re-scanning. Empty when `--drill` is 0 (the default).
     #[serde(default)]
     pub drill_down: HashMap<String, DirDrillDown>,
+    /// Effective maximum traversal depth for this scan, or `None` when the whole
+    /// subtree was walked (`--deep`).
+    ///
+    /// Reported so a machine consumer can tell a complete measurement from a
+    /// deliberately truncated one. Without this, `--max-depth 3` produced a
+    /// `total_size_bytes` that covered only the first three levels and looked
+    /// exactly like a real total.
+    #[serde(default)]
+    pub scan_depth: Option<usize>,
+    /// True when `scan_depth` capped traversal. `total_size_bytes`, the category
+    /// maps and the per-directory sizes then describe only the files within that
+    /// depth, and will under-report the tree's real size.
+    #[serde(default)]
+    pub depth_limited: bool,
 }
 
 /// Immediate children and largest files for a single directory, produced by
@@ -136,6 +150,8 @@ impl ScanReport {
             timestamp: String::new(),
             is_index_only: false,
             drill_down: HashMap::new(),
+            scan_depth: None,
+            depth_limited: false,
         }
     }
 
