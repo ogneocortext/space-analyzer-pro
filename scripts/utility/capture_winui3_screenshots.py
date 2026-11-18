@@ -658,13 +658,13 @@ def _select_tab(window: auto.Control, label: str) -> bool:
 
 def find_binary() -> Path:
     candidates = [
-        REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Release" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
-        REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
+        REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Release" / "net11.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
+        REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net11.0-windows10.0.22621.0" / "SpaceAnalyzer.exe",
     ]
     for p in candidates:
         if p.exists():
             return p.resolve()
-    return REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net10.0-windows10.0.22621.0" / "SpaceAnalyzer.exe"
+    return REPO / "gui-winui" / "SpaceAnalyzer" / "bin" / "x64" / "Debug" / "net11.0-windows10.0.22621.0" / "SpaceAnalyzer.exe"
 
 
 def prune_old_buckets(root: Path, keep: int = MAX_BUCKETS) -> int:

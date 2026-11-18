@@ -162,7 +162,7 @@ The WinUI 3 GUI (`gui-winui/`) is a native desktop app — browser-based testing
 python scripts/test/gui_macro_test.py
 
 # Find the binary to test against:
-#   gui-winui/SpaceAnalyzer/bin/x64/{Debug|Release}/net10.0-windows10.0.22621.0/SpaceAnalyzer.exe
+#   gui-winui/SpaceAnalyzer/bin/x64/{Debug|Release}/net11.0-windows10.0.22621.0/SpaceAnalyzer.exe
 ```
 
 **Requirements** (Windows only):

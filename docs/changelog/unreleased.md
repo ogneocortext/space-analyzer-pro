@@ -244,3 +244,47 @@
 ### Verified
 - `cargo clippy --workspace --all-targets` ✅ (exit 0; zero warnings)
 - `cargo test --workspace` ✅ (all crates pass)
+
+## Runtime: .NET 11
+
+### Changed
+- **SDK pinned to 11.0.100** (`gui-winui/global.json`). The previous pin was
+  `10.0.302`, which no machine here satisfies — only the 11.0.100 SDK is installed,
+  so every `dotnet build` / `just run-gui` failed with "A compatible .NET SDK was not
+  found". `rollForward: latestFeature` keeps the pin on the 11 line.
+- **WinUI 3 app retargeted to `net11.0-windows10.0.22621.0`** (was `net10.0`).
+  `SupportedOSPlatformVersion` stays `10.0.19041.0`, so the app still runs on
+  Windows 10 2004+; only the compile-time API surface moved.
+- **Test + helper projects retargeted to `net11.0`**: `SpaceAnalyzer.Tests`,
+  `TestJson`, `tools/csharp-analyzer`. A `net10.0` test project cannot reference a
+  `net11.0` application, so all three had to move together.
+- **Microsoft.* packages to 11.0.0**: `Microsoft.Data.Sqlite` (10.0.11 → 11.0.0) and
+  `System.Diagnostics.PerformanceCounter` (10.0.11 → 11.0.0).
+  `Microsoft.WindowsAppSDK` stays on 2.4.0 — it is the newest **complete** runtime
+  installed here (Framework + DDLM + Main.2 + Singleton), and 2.4.0 is independent of
+  the .NET TFM. `LiveChartsCore.SkiaSharpView.WinUI` 2.0.5 and
+  `SQLitePCLRaw.bundle_e_sqlite3` 3.0.5 are unchanged.
+- **Path references updated for the new TFM**: `justfile` (`run-gui`),
+  `scripts/utility/package_winui.ps1`, `scripts/utility/capture_winui3_screenshots.py`,
+  `scripts/test/gui_macro_test.py`, and `CONTRIBUTING.md` all hard-coded the
+  `net10.0-windows10.0.22621.0` output directory and would have failed to locate the
+  built exe.
+
+### Notes
+- .NET 11 is an STS release (supported to 2028-11-14), same end date as .NET 10 LTS,
+  so this does not shorten the support window.
+- .NET 11 raises the x64 CPU baseline to **x86-64-v2** (SSE4.2 / POPCNT / CX16) and
+  ARM64 to **LSE**. Hardware older than ~2009 will not start the runtime. Any machine
+  that cannot meet this needs to stay on .NET 10.
+- Behavioural changes worth knowing: `Math.Round`/`MathF.Round` now round correctly,
+  float→small-int casts saturate instead of wrapping, and `DateOnly`/`TimeOnly`
+  `TryParse` throw on invalid input. None are hit by this codebase (verified by the
+  test suite), but they are silent-at-compile-time changes.
+
+### Verified
+- `dotnet build gui-winui/SpaceAnalyzer.sln -p:Platform=x64` ✅ 0 errors, 26 warnings
+  (all pre-existing `CsWinRT1032` in `LiveChartsFactory.cs` / `DashboardPage.xaml.cs`;
+  no new warning types vs the net10.0 baseline).
+- `dotnet test gui-winui/SpaceAnalyzer.Tests` ✅ 17/17 passed on net11.0.
+- App launches on net11.0 — window title "Space Analyzer Pro — Dashboard", responding.
+- `cargo test --workspace` ✅ 356 passed, 0 failed (Rust core unaffected).

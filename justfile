@@ -236,7 +236,7 @@ setup:
 
 # Run the WinUI 3 GUI (Debug build)
 run-gui: build-winui-debug
-    Start-Process "gui-winui/SpaceAnalyzer/bin/x64/Debug/net10.0-windows10.0.22621.0/SpaceAnalyzer.exe"
+    Start-Process "gui-winui/SpaceAnalyzer/bin/x64/Debug/net11.0-windows10.0.22621.0/SpaceAnalyzer.exe"
 
 # Run the CLI scanner
 run-cli:

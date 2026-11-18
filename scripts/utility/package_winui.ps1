@@ -25,7 +25,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
         throw "Could not find a [package] version in '$toml'."
     }
 }
-$src  = Join-Path $repo 'gui-winui\SpaceAnalyzer\bin\x64\Release\net10.0-windows10.0.22621.0'
+$src  = Join-Path $repo 'gui-winui\SpaceAnalyzer\bin\x64\Release\net11.0-windows10.0.22621.0'
 $dist = Join-Path $repo 'dist'
 $zip  = Join-Path $dist "space-analyzer-winui-$Version-windows-x64.zip"
 
